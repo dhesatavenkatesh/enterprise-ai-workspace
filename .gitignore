@@ -1,22 +1,30 @@
+# Environment files
+.env
+.env.*
+!.env.example
+
 # Python
 venv/
 .venv/
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
 
 # Node
 node_modules/
 dist/
-
-# Environment
-.env
-.env.*
-
-# VS Code
-.vscode/
+build/
 
 # Logs
 *.log
 
-# Database
-*.db
+# Editors
+.vscode/
+.idea/
+
+# Operating system
+.DS_Store
+Thumbs.db
+
+# Docker local files
+docker-data/
