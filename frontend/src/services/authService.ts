@@ -20,7 +20,7 @@ export const authService = {
   ): Promise<AuthUser> {
     const response =
       await apiClient.post<AuthUser>(
-        "/auth/register",
+        "/api/auth/register",
         payload,
       )
 
@@ -32,7 +32,7 @@ export const authService = {
   ): Promise<TokenResponse> {
     const response =
       await apiClient.post<TokenResponse>(
-        "/auth/login",
+        "/api/auth/login",
         payload,
       )
 
@@ -43,7 +43,7 @@ export const authService = {
     Promise<AuthUser> {
     const response =
       await apiClient.get<AuthUser>(
-        "/auth/me",
+        "/api/auth/me",
       )
 
     return response.data
@@ -54,7 +54,7 @@ export const authService = {
   ): Promise<TokenResponse> {
     const response =
       await refreshClient.post<TokenResponse>(
-        "/auth/refresh",
+        "/api/auth/refresh",
         {
           refresh_token:
             refreshToken,
@@ -69,7 +69,7 @@ export const authService = {
   ): Promise<MessageResponse> {
     const response =
       await apiClient.post<MessageResponse>(
-        "/auth/logout",
+        "/api/auth/logout",
         {
           refresh_token:
             refreshToken,
