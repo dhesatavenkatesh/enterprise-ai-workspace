@@ -1,9 +1,17 @@
+from __future__ import annotations
+
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
+
+if TYPE_CHECKING:
+    from app.chat.models import Conversation, PromptTemplate
+    from app.models.role import Role
+    from app.models.user_session import UserSession
 
 
 class User(Base):
@@ -32,7 +40,10 @@ class User(Base):
     )
 
     role_id: Mapped[int] = mapped_column(
-        ForeignKey("roles.id"),
+        ForeignKey(
+            "roles.id",
+            ondelete="RESTRICT",
+        ),
         nullable=False,
         index=True,
     )
@@ -57,13 +68,37 @@ class User(Base):
         nullable=False,
     )
 
-    role = relationship(
+    role: Mapped["Role"] = relationship(
         "Role",
         back_populates="users",
     )
 
-    sessions = relationship(
+    sessions: Mapped[list["UserSession"]] = relationship(
         "UserSession",
         back_populates="user",
         cascade="all, delete-orphan",
     )
+
+    conversations: Mapped[list["Conversation"]] = relationship(
+        "Conversation",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+    prompt_templates: Mapped[list["PromptTemplate"]] = relationship(
+        "PromptTemplate",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<User("
+            f"id={self.id}, "
+            f"name={self.name!r}, "
+            f"email={self.email!r}, "
+            f"status={self.status!r}"
+            f")>"
+        )

@@ -1,117 +1,63 @@
-import axios from "axios"
+import {
+  AxiosError,
+} from "axios"
 
-import type {
-  ApiErrorResponse,
-  ValidationErrorItem,
-} from "@/types/api"
+interface ErrorResponse {
+  detail?:
+    | string
+    | Array<{
+        msg?: string
+      }>
 
-function getValidationMessage(
-  item: ValidationErrorItem,
-): string {
-  return (
-    item.message ??
-    item.msg ??
-    "Validation failed"
-  )
+  message?: string
 }
 
 export function getApiError(
   error: unknown,
+  fallbackMessage =
+    "Something went wrong.",
 ): string {
   if (
-    axios.isAxiosError<
-      ApiErrorResponse
-    >(error)
+    error instanceof AxiosError
   ) {
-    const responseData =
-      error.response?.data
+    const data =
+      error.response
+        ?.data as
+        | ErrorResponse
+        | undefined
 
     if (
-      responseData?.message
-    ) {
-      return responseData.message
-    }
-
-    if (
-      typeof responseData?.detail ===
+      typeof data?.detail ===
       "string"
     ) {
-      return responseData.detail
+      return data.detail
     }
 
     if (
       Array.isArray(
-        responseData?.detail,
+        data?.detail,
       )
     ) {
-      return responseData.detail
-        .map(
-          getValidationMessage,
-        )
-        .join(", ")
+      const validationMessage =
+        data.detail
+          .map(
+            (item) =>
+              item.msg,
+          )
+          .filter(Boolean)
+          .join(", ")
+
+      if (validationMessage) {
+        return validationMessage
+      }
     }
 
-    if (
-      responseData?.errors &&
-      responseData.errors.length > 0
-    ) {
-      return responseData.errors
-        .map(
-          getValidationMessage,
-        )
-        .join(", ")
+    if (data?.message) {
+      return data.message
     }
 
-    if (!error.response) {
-      return (
-        "Unable to connect to " +
-        "the backend server."
-      )
-    }
-
-    switch (
-      error.response.status
-    ) {
-      case 400:
-        return "Invalid request."
-
-      case 401:
-        return (
-          "Authentication failed."
-        )
-
-      case 403:
-        return "Permission Denied"
-
-      case 404:
-        return (
-          "Requested resource " +
-          "was not found."
-        )
-
-      case 409:
-        return (
-          "The requested record " +
-          "already exists."
-        )
-
-      case 422:
-        return (
-          "Please check the " +
-          "submitted information."
-        )
-
-      case 500:
-        return (
-          "The server encountered " +
-          "an unexpected error."
-        )
-
-      default:
-        return (
-          "The request could not " +
-          "be completed."
-        )
+    if (error.message) {
+      return error.message
     }
   }
 
@@ -121,7 +67,5 @@ export function getApiError(
     return error.message
   }
 
-  return (
-    "An unexpected error occurred."
-  )
+  return fallbackMessage
 }

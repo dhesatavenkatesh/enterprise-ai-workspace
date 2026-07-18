@@ -75,7 +75,7 @@ import {
 import {
   PublicRoute,
 } from "@/routes/PublicRoute"
-
+import PromptTemplatesPage from "@/pages/dashboard/PromptTemplatesPage"
 import {
   RoleRoute,
 } from "@/routes/RoleRoute"
@@ -134,7 +134,10 @@ function App() {
             path="/ai-chat"
             element={<AIChatPage />}
           />
-
+          <Route
+  path="/prompt-templates"
+  element={<PromptTemplatesPage />}
+/>
           <Route
             path="/knowledge-base"
             element={
