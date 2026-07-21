@@ -1,0 +1,86 @@
+from app.rag.document_processor import (
+    DocumentChunk,
+    DocumentProcessingError,
+    DocumentProcessor,
+    EmptyDocumentError,
+    ProcessedDocument,
+    UnsupportedDocumentTypeError,
+    process_document,
+)
+
+from app.rag.embedding_service import (
+    DEFAULT_EMBEDDING_MODEL,
+    EmbeddingService,
+    EmbeddingServiceError,
+    EmptyEmbeddingInputError,
+    InvalidEmbeddingError,
+    generate_embedding,
+    generate_embeddings,
+    get_embedding_service,
+)
+
+from app.rag.vector_store import (
+    DEFAULT_COLLECTION_NAME,
+    DEFAULT_PERSIST_DIRECTORY,
+    EmptyVectorStoreInputError,
+    VectorDimensionMismatchError,
+    VectorStore,
+    VectorStoreError,
+    get_vector_store,
+)
+
+from app.rag.rag_service import (
+    DocumentFileNotFoundError,
+    DocumentIndexResult,
+    DocumentIndexingError,
+    DocumentNotFoundError,
+    RAGAnswer,
+    RAGCitation,
+    RAGSearchError,
+    RAGSearchResult,
+    RAGService,
+    RAGServiceError,
+    get_rag_service,
+)
+
+__all__ = [
+    # Document processor
+    "DocumentChunk",
+    "DocumentProcessingError",
+    "DocumentProcessor",
+    "EmptyDocumentError",
+    "ProcessedDocument",
+    "UnsupportedDocumentTypeError",
+    "process_document",
+
+    # Embedding service
+    "DEFAULT_EMBEDDING_MODEL",
+    "EmbeddingService",
+    "EmbeddingServiceError",
+    "EmptyEmbeddingInputError",
+    "InvalidEmbeddingError",
+    "generate_embedding",
+    "generate_embeddings",
+    "get_embedding_service",
+
+    # Vector store
+    "DEFAULT_COLLECTION_NAME",
+    "DEFAULT_PERSIST_DIRECTORY",
+    "EmptyVectorStoreInputError",
+    "VectorDimensionMismatchError",
+    "VectorStore",
+    "VectorStoreError",
+    "get_vector_store",
+
+    "DocumentFileNotFoundError",
+"DocumentIndexResult",
+"DocumentIndexingError",
+"DocumentNotFoundError",
+"RAGAnswer",
+"RAGCitation",
+"RAGSearchError",
+"RAGSearchResult",
+"RAGService",
+"RAGServiceError",
+"get_rag_service",
+]

@@ -3,6 +3,7 @@ import axios from "axios"
 import type {
   AxiosError,
   AxiosRequestConfig,
+  InternalAxiosRequestConfig,
 } from "axios"
 
 import {
@@ -46,10 +47,6 @@ export const apiClient =
   axios.create({
     baseURL: apiBaseUrl,
     timeout: 15000,
-    headers: {
-      "Content-Type":
-        "application/json",
-    },
   })
 
 let isRefreshing = false
@@ -85,13 +82,39 @@ function processPendingRequests(
 }
 
 apiClient.interceptors.request.use(
-  (config) => {
+  (
+    config:
+      InternalAxiosRequestConfig,
+  ) => {
     const accessToken =
       tokenStorage.getAccessToken()
 
     if (accessToken) {
       config.headers.Authorization =
         `Bearer ${accessToken}`
+    }
+
+    /*
+     * For FormData requests, do not set
+     * Content-Type manually.
+     *
+     * The browser must generate:
+     * multipart/form-data; boundary=...
+     */
+    if (
+      config.data instanceof FormData
+    ) {
+      delete config.headers[
+        "Content-Type"
+      ]
+
+      delete config.headers[
+        "content-type"
+      ]
+    } else {
+      config.headers[
+        "Content-Type"
+      ] = "application/json"
     }
 
     return config
@@ -147,6 +170,7 @@ apiClient.interceptors.response.use(
     }
 
     if (originalRequest._retry) {
+      tokenStorage.clearTokens()
       emitUnauthorized()
 
       return Promise.reject(error)

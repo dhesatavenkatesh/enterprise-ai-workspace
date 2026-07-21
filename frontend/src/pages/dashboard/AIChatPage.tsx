@@ -315,23 +315,18 @@ export function AIChatPage() {
         const response =
           await sendMessage.mutateAsync({
             payload: {
-              message:
-                values.message,
-
-              conversation_id:
-                selectedConversationId,
-
+              message: values.message,
+              conversation_id: selectedConversationId,
               prompt_template_id:
-                values.prompt_template_id,
+              values.prompt_template_id,
+              provider: values.provider,
+              model_name: values.model_name,
+              temperature: values.temperature,
 
-              provider:
-                values.provider,
-
-              model_name:
-                values.model_name,
-
-              temperature:
-                values.temperature,
+              top_k: 5,
+              department: null,
+              document_type: null,
+              minimum_similarity: 0,
             },
 
             signal:

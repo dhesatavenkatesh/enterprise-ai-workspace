@@ -4,10 +4,7 @@ import {
   Routes,
 } from "react-router-dom"
 
-import {
-  AuthLayout,
-} from "@/layouts/AuthLayout"
-
+import { AuthLayout } from "@/layouts/AuthLayout"
 import {
   DashboardLayout,
 } from "@/layouts/DashboardLayout"
@@ -19,19 +16,15 @@ import {
 import {
   ForgotPasswordPage,
 } from "@/pages/auth/ForgotPasswordPage"
-
 import {
   LoginPage,
 } from "@/pages/auth/LoginPage"
-
 import {
   RegisterPage,
 } from "@/pages/auth/RegisterPage"
-
 import {
   ResetPasswordPage,
 } from "@/pages/auth/ResetPasswordPage"
-
 import {
   UnauthorizedPage,
 } from "@/pages/auth/UnauthorizedPage"
@@ -39,31 +32,25 @@ import {
 import {
   AgentsPage,
 } from "@/pages/dashboard/AgentsPage"
-
 import {
   AIChatPage,
 } from "@/pages/dashboard/AIChatPage"
-
 import {
   AnalyticsPage,
 } from "@/pages/dashboard/AnalyticsPage"
-
 import {
   DashboardPage,
 } from "@/pages/dashboard/DashboardPage"
-
 import {
   KnowledgeBasePage,
 } from "@/pages/dashboard/KnowledgeBasePage"
-
 import {
   ProfilePage,
 } from "@/pages/dashboard/ProfilePage"
-
+import PromptTemplatesPage from "@/pages/dashboard/PromptTemplatesPage"
 import {
   SettingsPage,
 } from "@/pages/dashboard/SettingsPage"
-
 import {
   WorkflowsPage,
 } from "@/pages/dashboard/WorkflowsPage"
@@ -71,11 +58,9 @@ import {
 import {
   ProtectedRoute,
 } from "@/routes/ProtectedRoute"
-
 import {
   PublicRoute,
 } from "@/routes/PublicRoute"
-import PromptTemplatesPage from "@/pages/dashboard/PromptTemplatesPage"
 import {
   RoleRoute,
 } from "@/routes/RoleRoute"
@@ -83,16 +68,18 @@ import {
 function App() {
   return (
     <Routes>
+      {/* Default route */}
       <Route
         path="/"
         element={
           <Navigate
-            to="/login"
+            to="/dashboard"
             replace
           />
         }
       />
 
+      {/* Public authentication routes */}
       <Route element={<PublicRoute />}>
         <Route element={<AuthLayout />}>
           <Route
@@ -121,6 +108,7 @@ function App() {
         </Route>
       </Route>
 
+      {/* Authenticated routes */}
       <Route element={<ProtectedRoute />}>
         <Route
           element={<DashboardLayout />}
@@ -134,10 +122,14 @@ function App() {
             path="/ai-chat"
             element={<AIChatPage />}
           />
+
           <Route
-  path="/prompt-templates"
-  element={<PromptTemplatesPage />}
-/>
+            path="/prompt-templates"
+            element={
+              <PromptTemplatesPage />
+            }
+          />
+
           <Route
             path="/knowledge-base"
             element={
@@ -150,6 +142,7 @@ function App() {
             element={<ProfilePage />}
           />
 
+          {/* Admin, Manager, HR and Support */}
           <Route
             element={
               <RoleRoute
@@ -182,6 +175,7 @@ function App() {
             />
           </Route>
 
+          {/* Admin only */}
           <Route
             element={
               <RoleRoute

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 from typing import Literal
 from uuid import UUID
@@ -6,38 +8,29 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class ChatRequest(BaseModel):
-    prompt: str = Field(
+    """Request body sent by frontend/src/services/chatService.ts."""
+
+    message: str = Field(
         min_length=1,
         max_length=20_000,
     )
 
     conversation_id: UUID | None = None
-    template_id: UUID | None = None
+    prompt_template_id: UUID | None = None
 
-    system_prompt: str | None = None
-    provider: str | None = None
-    model: str | None = None
-    temperature: float = 0.7
-    max_tokens: int | None = None
-    
     provider: Literal[
         "groq",
         "openai",
         "ollama",
     ] | None = None
 
-    model: str | None = Field(
+    model_name: str | None = Field(
         default=None,
         max_length=100,
     )
 
-    system_prompt: str | None = Field(
-        default=None,
-        max_length=10_000,
-    )
-
-    temperature: float | None = Field(
-        default=None,
+    temperature: float = Field(
+        default=0.7,
         ge=0,
         le=2,
     )
@@ -48,15 +41,47 @@ class ChatRequest(BaseModel):
         le=32_768,
     )
 
+    system_prompt: str | None = Field(
+        default=None,
+        max_length=10_000,
+    )
 
-class ChatResponse(BaseModel):
-    conversation_id: UUID
-    response: str
-    tokens: int
-    prompt_tokens: int = 0
-    completion_tokens: int = 0
-    provider: str
-    model: str
+    top_k: int = Field(
+        default=5,
+        ge=1,
+        le=50,
+    )
+
+    document_id: UUID | None = None
+
+    department: str | None = Field(
+        default=None,
+        max_length=100,
+    )
+
+    document_type: str | None = Field(
+        default=None,
+        max_length=100,
+    )
+
+    minimum_similarity: float = Field(
+        default=0.1,
+        ge=0.0,
+        le=1.0,
+    )
+
+    # Compatibility properties for the existing Sprint 2 backend.
+    @property
+    def prompt(self) -> str:
+        return self.message
+
+    @property
+    def template_id(self) -> UUID | None:
+        return self.prompt_template_id
+
+    @property
+    def model(self) -> str | None:
+        return self.model_name
 
 
 class RenameConversationRequest(BaseModel):
@@ -80,8 +105,16 @@ class MessageResponse(BaseModel):
     completion_tokens: int
     provider: str | None
     model_name: str | None
-    rating: int | None
+    rating: int | None = None
     created_at: datetime
+
+
+class ChatResponse(BaseModel):
+    conversation_id: UUID
+    conversation_title: str
+    user_message: MessageResponse
+    assistant_message: MessageResponse
+    total_tokens: int = 0
 
 
 class ConversationSummaryResponse(BaseModel):

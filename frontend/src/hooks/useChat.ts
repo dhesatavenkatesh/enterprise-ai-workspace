@@ -22,8 +22,7 @@ interface SendChatMessageVariables {
 }
 
 export function useSendChatMessage() {
-  const queryClient =
-    useQueryClient()
+  const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: ({
@@ -35,9 +34,7 @@ export function useSendChatMessage() {
         signal,
       ),
 
-    onSuccess: (
-      response,
-    ) => {
+    onSuccess: (response) => {
       const conversationId =
         response.conversation_id
 
@@ -50,22 +47,18 @@ export function useSendChatMessage() {
         (
           existingMessages = [],
         ) => {
-          const messageIds =
-            new Set(
-              existingMessages.map(
-                (message) =>
-                  message.id,
-              ),
-            )
+          const messageIds = new Set(
+            existingMessages.map(
+              (message) => message.id,
+            ),
+          )
 
           const newMessages = [
             response.user_message,
             response.assistant_message,
           ].filter(
             (message) =>
-              !messageIds.has(
-                message.id,
-              ),
+              !messageIds.has(message.id),
           )
 
           return [

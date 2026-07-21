@@ -56,8 +56,15 @@ from app.chat.schemas import (
     DeleteConversationResponse,
     RenameConversationRequest,
 )
+from app.ai.groq_client import generate_with_groq
 from app.database.session import get_db
 from app.models.user import User
+from app.rag.rag_service import (
+    DocumentNotFoundError,
+    RAGSearchError,
+    RAGServiceError,
+    get_rag_service,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -145,6 +152,83 @@ def build_llm_messages(
     return messages
 
 
+
+def build_conversation_history(
+    db: Session,
+    conversation_id: UUID,
+    user_id: int,
+    *,
+    max_messages: int = 10,
+) -> str:
+    """
+    Build short-term memory from previous messages in one conversation.
+
+    The newest user message is excluded because it is added separately
+    as the current question in the RAG prompt.
+    """
+
+    stored_messages = get_conversation_messages(
+        db=db,
+        conversation_id=conversation_id,
+        user_id=user_id,
+    )
+
+    if not stored_messages:
+        return ""
+
+    previous_messages = stored_messages[:-1]
+
+    if max_messages > 0:
+        previous_messages = previous_messages[-max_messages:]
+
+    history_lines: list[str] = []
+
+    for stored_message in previous_messages:
+        role_value = getattr(
+            stored_message.role,
+            "value",
+            stored_message.role,
+        )
+
+        role_name = (
+            "User"
+            if str(role_value).lower() == "user"
+            else "Assistant"
+        )
+
+        content = (stored_message.content or "").strip()
+
+        if content:
+            history_lines.append(
+                f"{role_name}: {content}"
+            )
+
+    return "\n".join(history_lines)
+
+
+def build_memory_aware_query(
+    *,
+    conversation_history: str,
+    current_question: str,
+) -> str:
+    """
+    Combine previous messages with the current user question.
+    """
+
+    current_question = current_question.strip()
+
+    if not conversation_history.strip():
+        return current_question
+
+    return (
+        "Use the previous conversation only to understand references "
+        "and follow-up questions. Answer using the indexed enterprise "
+        "knowledge base when the question requires company information.\n\n"
+        f"Previous conversation:\n{conversation_history}\n\n"
+        f"Current user question:\n{current_question}"
+    )
+
+
 def get_or_create_conversation(
     db: Session,
     user_id: int,
@@ -225,8 +309,10 @@ def raise_prompt_template_http_error(
 @router.post(
     "",
     response_model=ChatResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Send an enterprise RAG chat message",
 )
-async def chat(
+def chat(
     request_data: ChatRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(
@@ -234,9 +320,9 @@ async def chat(
     ),
 ) -> ChatResponse:
     """
-    Generate a normal AI chat response.
-
-    The request may optionally contain template_id.
+    Create or continue a conversation, save the user message,
+    answer from indexed enterprise documents, save the assistant
+    message, and return the response format expected by React.
     """
 
     try:
@@ -246,17 +332,13 @@ async def chat(
             request_data=request_data,
         )
 
-        # Store the user's original question.
-        # This keeps conversation history readable.
-        add_message(
+        user_message = add_message(
             db=db,
             conversation_id=conversation.id,
             role=MessageRole.USER,
             content=request_data.prompt,
         )
 
-        # Ensure the latest user message is available
-        # before building the LLM context.
         db.flush()
 
         rendered_template_prompt = (
@@ -267,59 +349,119 @@ async def chat(
             )
         )
 
-        llm_messages = build_llm_messages(
+        base_rag_query = (
+            rendered_template_prompt
+            or request_data.prompt
+        )
+
+        conversation_history = build_conversation_history(
             db=db,
             conversation_id=conversation.id,
             user_id=current_user.id,
-            system_prompt=(
-                request_data.system_prompt
+            max_messages=10,
+        )
+
+        rag_query = build_memory_aware_query(
+            conversation_history=conversation_history,
+            current_question=base_rag_query,
+        )
+
+        rag_service = get_rag_service(
+            db=db,
+            llm_callable=generate_with_groq,
+        )
+        rag_result = rag_service.answer_question(
+            query=rag_query,
+            top_k=request_data.top_k,
+            document_id=(
+                str(request_data.document_id)
+                if request_data.document_id
+                else None
             ),
-            latest_user_prompt_override=(
-                rendered_template_prompt
+            department=request_data.department,
+            document_type=request_data.document_type,
+            minimum_similarity=(
+                request_data.minimum_similarity
             ),
+            user_id=current_user.id,
         )
 
-        llm_service = create_service(
-            provider_name=request_data.provider,
-            model=request_data.model,
-        )
+        answer_text = rag_result.answer.strip()
 
-        llm_response = await llm_service.generate(
-            messages=llm_messages,
-            temperature=request_data.temperature,
-            max_tokens=request_data.max_tokens,
-        )
+        # Keep citations visible in the existing ChatMessage UI even
+        # before a dedicated citation JSON column/component is added.
+        citations = getattr(
+            rag_result,
+            "citations",
+            [],
+        ) or []
 
-        add_message(
+        if citations:
+            source_lines: list[str] = []
+
+            for index, citation in enumerate(
+                citations,
+                start=1,
+            ):
+                title = getattr(
+                    citation,
+                    "document_title",
+                    None,
+                ) or getattr(
+                    citation,
+                    "file_name",
+                    None,
+                ) or "Enterprise document"
+
+                page_number = getattr(
+                    citation,
+                    "page_number",
+                    None,
+                )
+
+                page_text = (
+                    f" (page {page_number})"
+                    if page_number
+                    else ""
+                )
+
+                source_lines.append(
+                    f"[{index}] {title}{page_text}"
+                )
+
+            answer_text = (
+                f"{answer_text}\n\nSources:\n"
+                + "\n".join(source_lines)
+            )
+
+        assistant_message = add_message(
             db=db,
             conversation_id=conversation.id,
             role=MessageRole.ASSISTANT,
-            content=llm_response.content,
-            token_count=llm_response.total_tokens,
-            prompt_tokens=(
-                llm_response.prompt_tokens
+            content=answer_text,
+            token_count=0,
+            prompt_tokens=0,
+            completion_tokens=0,
+            provider=request_data.provider or "rag",
+            model_name=(
+                request_data.model_name
+                or "enterprise-rag"
             ),
-            completion_tokens=(
-                llm_response.completion_tokens
-            ),
-            provider=llm_response.provider,
-            model_name=llm_response.model,
         )
 
         db.commit()
+        db.refresh(conversation)
+        db.refresh(user_message)
+        db.refresh(assistant_message)
 
         return ChatResponse(
             conversation_id=conversation.id,
-            response=llm_response.content,
-            tokens=llm_response.total_tokens,
-            prompt_tokens=(
-                llm_response.prompt_tokens
+            conversation_title=conversation.title,
+            user_message=user_message,
+            assistant_message=assistant_message,
+            total_tokens=(
+                assistant_message.token_count
             ),
-            completion_tokens=(
-                llm_response.completion_tokens
-            ),
-            provider=llm_response.provider,
-            model=llm_response.model,
         )
 
     except (
@@ -329,22 +471,24 @@ async def chat(
         db.rollback()
         raise_prompt_template_http_error(exc)
 
+    except DocumentNotFoundError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
     except (
-        LLMConfigurationError,
-        LLMProviderError,
-        LLMTimeoutError,
+        RAGSearchError,
+        RAGServiceError,
     ) as exc:
         db.rollback()
-
         logger.exception(
-            "LLM chat generation error"
+            "Enterprise RAG chat generation failed"
         )
-
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=(
-                f"{type(exc).__name__}: {str(exc)}"
-            ),
+            detail=str(exc),
         ) from exc
 
     except HTTPException:
@@ -353,11 +497,9 @@ async def chat(
 
     except Exception as exc:
         db.rollback()
-
         logger.exception(
-            "Unexpected chat generation error"
+            "Unexpected enterprise chat error"
         )
-
         raise HTTPException(
             status_code=(
                 status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -794,4 +936,3 @@ def restore_user_conversation(
     return ConversationSummaryResponse.model_validate(
         conversation
     )
-

@@ -1,0 +1,5 @@
+title: Leave Policy
+document_type: policy
+department: HR
+description: Employee leave policy
+file: leave_policy.txt
