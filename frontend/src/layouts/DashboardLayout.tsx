@@ -9,6 +9,7 @@ import {
   LogOut,
   Menu,
   Moon,
+  Network,
   Settings,
   Sun,
   User,
@@ -72,6 +73,11 @@ const mainNavigation: NavigationItem[] = [
     icon: Bot,
   },
   {
+    label: "Orchestrator",
+    path: "/orchestrator",
+    icon: Network,
+  },
+  {
     label: "Agents",
     path: "/agents",
     icon: Activity,
@@ -100,7 +106,6 @@ const accountNavigation: NavigationItem[] = [
     icon: Settings,
   },
 ]
-
 function getInitials(
   name?: string | null,
 ): string {

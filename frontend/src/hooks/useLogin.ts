@@ -7,19 +7,12 @@ import {
 } from "@/services/authService"
 
 import {
-  queryClient,
-} from "@/lib/queryClient"
-
-import {
-  queryKeys,
-} from "@/services/queryKeys"
-
-import {
   useAuthStore,
 } from "@/store/authStore"
 
 import type {
   LoginRequest,
+  TokenResponse,
 } from "@/types/auth"
 
 export function useLogin() {
@@ -28,20 +21,23 @@ export function useLogin() {
       (state) => state.setAuth,
     )
 
-  return useMutation({
+  return useMutation<
+    TokenResponse,
+    Error,
+    LoginRequest
+  >({
     mutationFn: (
-      payload: LoginRequest,
+      credentials,
     ) =>
-      authService.login(payload),
+      authService.login(
+        credentials,
+      ),
 
-    onSuccess: (
-      response,
-    ) => {
-      setAuth(response)
-
-      queryClient.setQueryData(
-        queryKeys.auth.currentUser,
+    onSuccess: (response) => {
+      setAuth(
         response.user,
+        response.access_token,
+        response.refresh_token,
       )
     },
   })

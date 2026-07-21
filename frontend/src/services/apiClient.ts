@@ -1,265 +1,71 @@
-import axios from "axios"
-
-import type {
-  AxiosError,
-  AxiosRequestConfig,
-  InternalAxiosRequestConfig,
+import axios, {
+  type AxiosError,
+  type InternalAxiosRequestConfig,
 } from "axios"
 
-import {
-  emitForbidden,
-  emitUnauthorized,
-} from "@/utils/authEvents"
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ??
+  "http://127.0.0.1:8000"
 
-import {
-  requestNewTokens,
-} from "@/services/refreshClient"
-
-import {
-  tokenStorage,
-} from "@/utils/tokenStorage"
-
-const apiBaseUrl =
-  import.meta.env.VITE_API_BASE_URL
-
-if (!apiBaseUrl) {
-  throw new Error(
-    "VITE_API_BASE_URL is not configured",
-  )
-}
-
-interface RetryableRequestConfig
-  extends AxiosRequestConfig {
-  _retry?: boolean
-}
-
-interface PendingRequest {
-  resolve: (
-    accessToken: string,
-  ) => void
-
-  reject: (
-    error: unknown,
-  ) => void
-}
-
-export const apiClient =
-  axios.create({
-    baseURL: apiBaseUrl,
-    timeout: 15000,
-  })
-
-let isRefreshing = false
-
-let pendingRequests:
-  PendingRequest[] = []
-
-function processPendingRequests(
-  error: unknown,
-  accessToken: string | null,
-): void {
-  pendingRequests.forEach(
-    ({ resolve, reject }) => {
-      if (
-        error ||
-        !accessToken
-      ) {
-        reject(
-          error ??
-            new Error(
-              "Token refresh failed",
-            ),
-        )
-
-        return
-      }
-
-      resolve(accessToken)
-    },
-  )
-
-  pendingRequests = []
-}
+export const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 60000,
+  headers: {
+    "Content-Type": "application/json",
+  },
+})
 
 apiClient.interceptors.request.use(
   (
-    config:
-      InternalAxiosRequestConfig,
+    config: InternalAxiosRequestConfig,
   ) => {
     const accessToken =
-      tokenStorage.getAccessToken()
+      localStorage.getItem(
+        "access_token",
+      )
 
     if (accessToken) {
       config.headers.Authorization =
         `Bearer ${accessToken}`
     }
 
-    /*
-     * For FormData requests, do not set
-     * Content-Type manually.
-     *
-     * The browser must generate:
-     * multipart/form-data; boundary=...
-     */
-    if (
-      config.data instanceof FormData
-    ) {
-      delete config.headers[
-        "Content-Type"
-      ]
-
-      delete config.headers[
-        "content-type"
-      ]
-    } else {
-      config.headers[
-        "Content-Type"
-      ] = "application/json"
-    }
-
     return config
   },
-
-  (error: unknown) =>
+  (error: AxiosError) =>
     Promise.reject(error),
 )
 
 apiClient.interceptors.response.use(
   (response) => response,
 
-  async (
-    error: AxiosError,
-  ): Promise<unknown> => {
-    const originalRequest =
-      error.config as
-        | RetryableRequestConfig
-        | undefined
-
+  (error: AxiosError) => {
     const status =
       error.response?.status
 
-    if (status === 403) {
-      emitForbidden()
+    const requestUrl =
+      error.config?.url ?? ""
 
-      return Promise.reject(error)
-    }
+    const isAuthRequest =
+      requestUrl.includes(
+        "/api/auth/login",
+      ) ||
+      requestUrl.includes(
+        "/api/auth/register",
+      ) ||
+      requestUrl.includes(
+        "/api/auth/refresh",
+      )
 
     if (
-      status !== 401 ||
-      !originalRequest
+      status === 401 &&
+      !isAuthRequest
     ) {
-      return Promise.reject(error)
+      console.error(
+        "Unauthorized request:",
+        requestUrl,
+      )
     }
 
-    const requestUrl =
-      originalRequest.url ?? ""
-
-    const isAuthenticationRequest =
-      requestUrl.includes(
-        "/auth/login",
-      ) ||
-      requestUrl.includes(
-        "/auth/register",
-      ) ||
-      requestUrl.includes(
-        "/auth/refresh",
-      )
-
-    if (isAuthenticationRequest) {
-      return Promise.reject(error)
-    }
-
-    if (originalRequest._retry) {
-      tokenStorage.clearTokens()
-      emitUnauthorized()
-
-      return Promise.reject(error)
-    }
-
-    const refreshToken =
-      tokenStorage.getRefreshToken()
-
-    if (!refreshToken) {
-      tokenStorage.clearTokens()
-      emitUnauthorized()
-
-      return Promise.reject(error)
-    }
-
-    if (isRefreshing) {
-      try {
-        const accessToken =
-          await new Promise<string>(
-            (resolve, reject) => {
-              pendingRequests.push({
-                resolve,
-                reject,
-              })
-            },
-          )
-
-        originalRequest.headers = {
-          ...originalRequest.headers,
-          Authorization:
-            `Bearer ${accessToken}`,
-        }
-
-        return apiClient(
-          originalRequest,
-        )
-      } catch (
-        refreshError
-      ) {
-        return Promise.reject(
-          refreshError,
-        )
-      }
-    }
-
-    originalRequest._retry = true
-    isRefreshing = true
-
-    try {
-      const tokenResponse =
-        await requestNewTokens(
-          refreshToken,
-        )
-
-      tokenStorage.setTokens(
-        tokenResponse.access_token,
-        tokenResponse.refresh_token,
-      )
-
-      processPendingRequests(
-        null,
-        tokenResponse.access_token,
-      )
-
-      originalRequest.headers = {
-        ...originalRequest.headers,
-        Authorization:
-          `Bearer ${tokenResponse.access_token}`,
-      }
-
-      return apiClient(
-        originalRequest,
-      )
-    } catch (
-      refreshError
-    ) {
-      processPendingRequests(
-        refreshError,
-        null,
-      )
-
-      tokenStorage.clearTokens()
-      emitUnauthorized()
-
-      return Promise.reject(
-        refreshError,
-      )
-    } finally {
-      isRefreshing = false
-    }
+    return Promise.reject(error)
   },
 )

@@ -15,10 +15,6 @@ import {
   useAuthStore,
 } from "@/store/authStore"
 
-import {
-  tokenStorage,
-} from "@/utils/tokenStorage"
-
 interface AuthInitializerProps {
   children: ReactNode
 }
@@ -29,11 +25,21 @@ export function AuthInitializer({
   const initialized =
     useRef(false)
 
-  const {
-    setUser,
-    clearAuth,
-    setInitializing,
-  } = useAuthStore()
+  const setUser =
+    useAuthStore(
+      (state) => state.setUser,
+    )
+
+  const clearAuth =
+    useAuthStore(
+      (state) => state.clearAuth,
+    )
+
+  const setInitializing =
+    useAuthStore(
+      (state) =>
+        state.setInitializing,
+    )
 
   useEffect(() => {
     if (initialized.current) {
@@ -42,20 +48,25 @@ export function AuthInitializer({
 
     initialized.current = true
 
-    async function initializeAuth() {
+    async function initializeAuth():
+      Promise<void> {
+      setInitializing(true)
+
       const accessToken =
-        tokenStorage.getAccessToken()
+        localStorage.getItem(
+          "access_token",
+        )
 
       const refreshToken =
-        tokenStorage.getRefreshToken()
+        localStorage.getItem(
+          "refresh_token",
+        )
 
       if (
         !accessToken &&
         !refreshToken
       ) {
         clearAuth()
-        setInitializing(false)
-
         return
       }
 
@@ -64,14 +75,12 @@ export function AuthInitializer({
           await authService.getMe()
 
         setUser(user)
-      } catch {
-        /*
-         * The Axios interceptor attempts
-         * token refresh automatically.
-         *
-         * If refresh also fails, tokens
-         * are already removed.
-         */
+      } catch (error) {
+        console.error(
+          "Authentication initialization failed:",
+          error,
+        )
+
         clearAuth()
       } finally {
         setInitializing(false)

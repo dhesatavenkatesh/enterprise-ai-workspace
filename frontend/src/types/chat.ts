@@ -28,6 +28,10 @@ export interface SendChatMessageRequest {
   provider?: LLMProvider
   model_name?: string
   temperature?: number
+  top_k?: number
+  department?: string | null
+  document_type?: string | null
+  minimum_similarity?: number
 }
 
 export interface SendChatMessageResponse {

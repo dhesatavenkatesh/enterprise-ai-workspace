@@ -1,0 +1,65 @@
+[
+  {
+    "id": "c5fba743-e49f-4966-847e-ab34dd4969ce",
+    "agent_name": "Project Management Agent",
+    "status": "success",
+    "response_time_ms": 1250.0,
+    "input_tokens": 450,
+    "output_tokens": 780,
+    "tool_names": [
+      "project_tracker",
+      "document_search"
+    ],
+    "workflow_id": "workflow-001",
+    "workflow_duration_ms": 4200.0,
+    "error_message": null,
+    "created_at": "2026-07-21T08:51:18.394698+00:00"
+  },
+  {
+    "id": "4e934365-e837-4c7c-bff0-772f5e66dfb3",
+    "agent_name": "HR Agent",
+    "status": "success",
+    "response_time_ms": 1200.0,
+    "input_tokens": 300,
+    "output_tokens": 500,
+    "tool_names": [
+      "document_search"
+    ],
+    "workflow_id": "workflow-001",
+    "workflow_duration_ms": 3500.0,
+    "error_message": null,
+    "created_at": "2026-07-21T09:34:35.569796+00:00"
+  },
+  {
+    "id": "bbc50140-19c4-4fc4-99c6-0d7b0cd07462",
+    "agent_name": "hr_agent",
+    "status": "success",
+    "response_time_ms": 0.0391000066883862,
+    "input_tokens": 6,
+    "output_tokens": 15,
+    "tool_names": [
+      "document_search",
+      "employee_directory"
+    ],
+    "workflow_id": null,
+    "workflow_duration_ms": null,
+    "error_message": null,
+    "created_at": "2026-07-21T09:38:37.183280+00:00"
+  },
+  {
+    "id": "42255e95-f695-45fc-94ac-6ae04477d15c",
+    "agent_name": "hr_agent",
+    "status": "success",
+    "response_time_ms": 3.1172000017249957,
+    "input_tokens": 6,
+    "output_tokens": 15,
+    "tool_names": [
+      "document_search",
+      "employee_directory"
+    ],
+    "workflow_id": null,
+    "workflow_duration_ms": null,
+    "error_message": null,
+    "created_at": "2026-07-21T10:11:18.905114+00:00"
+  }
+]

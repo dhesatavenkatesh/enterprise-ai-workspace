@@ -1,11 +1,14 @@
+import { useEffect, useState } from "react"
+
 import {
   Activity,
   Bot,
-  BrainCircuit,
-  Database,
-  TrendingUp,
-  Users,
+  CheckCircle2,
+  CircleAlert,
+  Network,
+  Workflow,
 } from "lucide-react"
+import { toast } from "sonner"
 
 import {
   Card,
@@ -14,188 +17,253 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-
 import {
-  useAuthStore,
-} from "@/store/authStore"
+  getAgents,
+  getApprovals,
+  getMCPTools,
+  getSprint4Health,
+  getWorkflows,
+} from "@/services/sprint4Service"
+import type {
+  Sprint4HealthResponse,
+} from "@/types/sprint4"
 
-const statistics = [
-  {
-    title: "AI Conversations",
-    value: "0",
-    description:
-      "Conversations this month",
-    icon: BrainCircuit,
-  },
-  {
-    title: "Knowledge Documents",
-    value: "0",
-    description:
-      "Indexed documents",
-    icon: Database,
-  },
-  {
-    title: "Active Agents",
-    value: "0",
-    description:
-      "Configured AI agents",
-    icon: Bot,
-  },
-  {
-    title: "Team Members",
-    value: "5",
-    description:
-      "Workspace members",
-    icon: Users,
-  },
-]
+interface DashboardStats {
+  agents: number
+  mcpTools: number
+  workflows: number
+  pendingApprovals: number
+}
+
+const initialStats: DashboardStats = {
+  agents: 0,
+  mcpTools: 0,
+  workflows: 0,
+  pendingApprovals: 0,
+}
 
 export function DashboardPage() {
-  const user = useAuthStore(
-    (state) => state.user,
-  )
+  const [stats, setStats] =
+    useState<DashboardStats>(initialStats)
+
+  const [health, setHealth] =
+    useState<Sprint4HealthResponse | null>(
+      null,
+    )
+
+  const [loading, setLoading] =
+    useState(true)
+
+  useEffect(() => {
+    const loadDashboardData =
+      async (): Promise<void> => {
+        setLoading(true)
+
+        try {
+          const [
+            agentsResponse,
+            mcpResponse,
+            workflowsResponse,
+            approvalsResponse,
+            healthResponse,
+          ] = await Promise.all([
+            getAgents(),
+            getMCPTools(),
+            getWorkflows(),
+            getApprovals("pending"),
+            getSprint4Health(),
+          ])
+
+          setStats({
+            agents:
+              agentsResponse.agents?.length ??
+              0,
+
+            mcpTools:
+              mcpResponse.tools?.length ??
+              0,
+
+            workflows:
+              workflowsResponse.length,
+
+            pendingApprovals:
+              approvalsResponse.approvals
+                ?.length ?? 0,
+          })
+
+          setHealth(healthResponse)
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Failed to load dashboard data"
+
+          toast.error(message)
+        } finally {
+          setLoading(false)
+        }
+      }
+
+    void loadDashboardData()
+  }, [])
+
+  const summaryCards = [
+    {
+      title: "Total Agents",
+      value: stats.agents,
+      description:
+        "Specialized AI agents available",
+      icon: Bot,
+    },
+    {
+      title: "MCP Tools",
+      value: stats.mcpTools,
+      description:
+        "Registered enterprise tools",
+      icon: Network,
+    },
+    {
+      title: "Workflows",
+      value: stats.workflows,
+      description:
+        "Configured AI workflows",
+      icon: Workflow,
+    },
+    {
+      title: "Pending Approvals",
+      value: stats.pendingApprovals,
+      description:
+        "Requests waiting for review",
+      icon: CheckCircle2,
+    },
+  ]
+
+  const healthModules = health
+    ? [
+        {
+          name: "Agents",
+          health: health.agents,
+        },
+        {
+          name: "MCP Gateway",
+          health: health.mcp,
+        },
+        {
+          name: "Workflows",
+          health: health.workflows,
+        },
+        {
+          name: "Approvals",
+          health: health.approvals,
+        },
+      ]
+    : []
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 p-6 text-white shadow-lg">
-        <p className="text-sm font-medium text-violet-100">
-          Enterprise AI Workspace
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">
+          Dashboard
+        </h1>
+
+        <p className="mt-1 text-slate-600">
+          Monitor your enterprise AI workspace.
         </p>
+      </div>
 
-        <h2 className="mt-2 text-2xl font-bold md:text-3xl">
-          Welcome back, {user?.name}
-        </h2>
-
-        <p className="mt-2 max-w-2xl text-sm text-violet-100 md:text-base">
-          Manage AI conversations,
-          knowledge, agents, workflows and
-          analytics from your secure
-          workspace.
-        </p>
-
-        <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-sm">
-          <Activity className="h-4 w-4" />
-          Account status:{" "}
-          {user?.status}
-        </div>
-      </section>
-
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {statistics.map((item) => {
-          const Icon = item.icon
+      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        {summaryCards.map((card) => {
+          const Icon = card.icon
 
           return (
-            <Card key={item.title}>
-              <CardContent className="flex items-start justify-between p-5">
-                <div>
-                  <p className="text-sm text-slate-500">
-                    {item.title}
-                  </p>
+            <Card key={card.title}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  {card.title}
+                </CardTitle>
 
-                  <p className="mt-2 text-3xl font-bold text-slate-900">
-                    {item.value}
-                  </p>
+                <Icon className="h-5 w-5 text-violet-600" />
+              </CardHeader>
 
-                  <p className="mt-1 text-xs text-slate-500">
-                    {item.description}
-                  </p>
+              <CardContent>
+                <div className="text-3xl font-bold">
+                  {loading
+                    ? "..."
+                    : card.value}
                 </div>
 
-                <div className="rounded-xl bg-violet-100 p-3 text-violet-600">
-                  <Icon className="h-5 w-5" />
-                </div>
+                <CardDescription className="mt-2">
+                  {card.description}
+                </CardDescription>
               </CardContent>
             </Card>
           )
         })}
-      </section>
+      </div>
 
-      <section className="grid gap-6 xl:grid-cols-3">
-        <Card className="xl:col-span-2">
-          <CardHeader>
-            <CardTitle>
-              Workspace activity
-            </CardTitle>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <Activity className="h-5 w-5 text-violet-600" />
 
-            <CardDescription>
-              Recent activity will appear
-              here.
-            </CardDescription>
-          </CardHeader>
+            <div>
+              <CardTitle>
+                Sprint 4 System Health
+              </CardTitle>
 
-          <CardContent>
-            <div className="flex min-h-64 flex-col items-center justify-center rounded-xl border border-dashed bg-slate-50 p-6 text-center">
-              <TrendingUp className="h-10 w-10 text-slate-400" />
-
-              <h3 className="mt-4 font-semibold">
-                No activity available
-              </h3>
-
-              <p className="mt-1 max-w-sm text-sm text-slate-500">
-                Activity analytics will be
-                displayed after AI modules
-                are connected.
-              </p>
+              <CardDescription>
+                Current availability of enterprise
+                AI modules.
+              </CardDescription>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </CardHeader>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              Your profile
-            </CardTitle>
+        <CardContent>
+          {loading ? (
+            <p className="text-sm text-slate-500">
+              Checking system health...
+            </p>
+          ) : health ? (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {healthModules.map((module) => (
+                <div
+                  key={module.name}
+                  className="flex items-center justify-between rounded-lg border border-slate-200 p-4"
+                >
+                  <div>
+                    <p className="font-medium text-slate-900">
+                      {module.name}
+                    </p>
 
-            <CardDescription>
-              Current account information
-            </CardDescription>
-          </CardHeader>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {module.health.message ??
+                        (module.health.ready
+                          ? "Module is ready"
+                          : "Module is unavailable")}
+                    </p>
+                  </div>
 
-          <CardContent className="space-y-4">
-            <ProfileRow
-              label="Name"
-              value={user?.name ?? "-"}
-            />
+                  {module.health.ready ? (
+                    <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
+                  ) : (
+                    <CircleAlert className="h-5 w-5 shrink-0 text-red-600" />
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-sm text-red-600">
+              <CircleAlert className="h-5 w-5" />
 
-            <ProfileRow
-              label="Email"
-              value={user?.email ?? "-"}
-            />
-
-            <ProfileRow
-              label="Role"
-              value={user?.role ?? "-"}
-            />
-
-            <ProfileRow
-              label="Status"
-              value={user?.status ?? "-"}
-            />
-          </CardContent>
-        </Card>
-      </section>
-    </div>
-  )
-}
-
-interface ProfileRowProps {
-  label: string
-  value: string
-}
-
-function ProfileRow({
-  label,
-  value,
-}: ProfileRowProps) {
-  return (
-    <div className="border-b pb-3 last:border-0 last:pb-0">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-        {label}
-      </p>
-
-      <p className="mt-1 break-words text-sm font-medium text-slate-900">
-        {value}
-      </p>
+              <span>
+                System-health information is
+                unavailable.
+              </span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }
