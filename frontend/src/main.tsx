@@ -26,6 +26,8 @@ import {
   Toaster,
 } from "@/components/ui/sonner"
 
+import "./styles/admin.css"
+
 import {
   queryClient,
 } from "@/lib/queryClient"

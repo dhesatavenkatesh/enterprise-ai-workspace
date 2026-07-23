@@ -65,10 +65,28 @@ def get_current_user(
             detail="User not found",
         )
 
+    if user.is_deleted:
+        raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="User account has been deleted",
+    )
+
+    if user.is_locked:
+        raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="User account is locked",
+    )
+
+    if not user.is_active:
+        raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="User account is inactive",
+    )
+
     if user.status.lower() != "active":
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is inactive",
-        )
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="User account is unavailable",
+    )
 
     return user

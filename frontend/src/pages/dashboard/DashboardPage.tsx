@@ -87,7 +87,7 @@ export function DashboardPage() {
               workflowsResponse.length,
 
             pendingApprovals:
-              approvalsResponse.approvals
+              approvalsResponse.items
                 ?.length ?? 0,
           })
 

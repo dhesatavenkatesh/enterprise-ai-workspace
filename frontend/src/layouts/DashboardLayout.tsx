@@ -4,15 +4,20 @@ import {
   Bot,
   BrainCircuit,
   ChevronDown,
+  FileClock,
   FileText,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   Menu,
   Moon,
   Network,
   Settings,
+  ShieldCheck,
   Sun,
   User,
+  UserCog,
+  Users,
   Workflow,
   X,
 } from "lucide-react"
@@ -34,10 +39,21 @@ import {
   useNavigate,
 } from "react-router-dom"
 
-import { Button } from "@/components/ui/button"
-import { useLogout } from "@/hooks/useLogout"
-import { cn } from "@/lib/utils"
-import { useAuthStore } from "@/store/authStore"
+import {
+  Button,
+} from "@/components/ui/button"
+
+import {
+  useLogout,
+} from "@/hooks/useLogout"
+
+import {
+  cn,
+} from "@/lib/utils"
+
+import {
+  useAuthStore,
+} from "@/store/authStore"
 
 interface NavigationIconProps {
   className?: string
@@ -49,6 +65,12 @@ interface NavigationItem {
   icon: ComponentType<NavigationIconProps>
   end?: boolean
 }
+
+/*
+|--------------------------------------------------------------------------
+| Workspace navigation
+|--------------------------------------------------------------------------
+*/
 
 const mainNavigation: NavigationItem[] = [
   {
@@ -94,18 +116,68 @@ const mainNavigation: NavigationItem[] = [
   },
 ]
 
+/*
+|--------------------------------------------------------------------------
+| Administration navigation
+|--------------------------------------------------------------------------
+*/
+
+const adminNavigation: NavigationItem[] = [
+  {
+    label: "Admin Dashboard",
+    path: "/admin",
+    icon: ShieldCheck,
+    end: true,
+  },
+  {
+    label: "User Management",
+    path: "/admin/users",
+    icon: Users,
+  },
+  {
+    label: "Role Management",
+    path: "/admin/roles",
+    icon: UserCog,
+  },
+  {
+    label: "Permission Management",
+    path: "/admin/permissions",
+    icon: KeyRound,
+  },
+  {
+    label: "Role Permissions",
+    path: "/admin/role-permissions",
+    icon: ShieldCheck,
+  },
+  {
+    label: "Audit Logs",
+    path: "/admin/audit-logs",
+    icon: FileClock,
+  },
+]
+
+/*
+|--------------------------------------------------------------------------
+| Account navigation
+|--------------------------------------------------------------------------
+*/
+
 const accountNavigation: NavigationItem[] = [
   {
     label: "Profile",
     path: "/profile",
     icon: User,
   },
+]
+
+const adminAccountNavigation: NavigationItem[] = [
   {
     label: "Settings",
     path: "/settings",
     icon: Settings,
   },
 ]
+
 function getInitials(
   name?: string | null,
 ): string {
@@ -122,12 +194,24 @@ function getInitials(
     .toUpperCase()
 }
 
+function normalizeRole(
+  role: unknown,
+): string {
+  if (typeof role !== "string") {
+    return ""
+  }
+
+  return role.trim().toLowerCase()
+}
+
 function getPageTitle(
   pathname: string,
 ): string {
   const navigationItems = [
     ...mainNavigation,
+    ...adminNavigation,
     ...accountNavigation,
+    ...adminAccountNavigation,
   ]
 
   const exactMatch =
@@ -144,6 +228,7 @@ function getPageTitle(
     navigationItems.find(
       (item) =>
         item.path !== "/dashboard" &&
+        item.path !== "/admin" &&
         pathname.startsWith(
           `${item.path}/`,
         ),
@@ -180,32 +265,34 @@ export function DashboardLayout() {
     setProfileMenuOpen,
   ] = useState(false)
 
-  const [darkMode, setDarkMode] =
-    useState<boolean>(() => {
-      if (
-        typeof window ===
-        "undefined"
-      ) {
-        return false
-      }
+  const [
+    darkMode,
+    setDarkMode,
+  ] = useState<boolean>(() => {
+    if (
+      typeof window ===
+      "undefined"
+    ) {
+      return false
+    }
 
-      const savedTheme =
-        window.localStorage.getItem(
-          "theme",
-        )
+    const savedTheme =
+      window.localStorage.getItem(
+        "theme",
+      )
 
-      if (savedTheme === "dark") {
-        return true
-      }
+    if (savedTheme === "dark") {
+      return true
+    }
 
-      if (savedTheme === "light") {
-        return false
-      }
+    if (savedTheme === "light") {
+      return false
+    }
 
-      return window.matchMedia(
-        "(prefers-color-scheme: dark)",
-      ).matches
-    })
+    return window.matchMedia(
+      "(prefers-color-scheme: dark)",
+    ).matches
+  })
 
   const pageTitle =
     getPageTitle(location.pathname)
@@ -218,8 +305,46 @@ export function DashboardLayout() {
     user?.email ||
     "user@example.com"
 
+  /*
+  |--------------------------------------------------------------------------
+  | Role detection
+  |--------------------------------------------------------------------------
+  |
+  | The normal field is user.role.
+  | Additional fallbacks help when the backend returns role_name or roleName.
+  |
+  */
+
+  const roleValue =
+    user?.role ??
+    (
+      user as unknown as {
+        role_name?: string
+        roleName?: string
+      }
+    )?.role_name ??
+    (
+      user as unknown as {
+        role_name?: string
+        roleName?: string
+      }
+    )?.roleName ??
+    "User"
+
   const userRole =
-    String(user?.role || "User")
+    String(roleValue)
+
+  const isAdmin =
+    normalizeRole(userRole) ===
+    "admin"
+
+  const visibleAccountNavigation =
+    isAdmin
+      ? [
+          ...accountNavigation,
+          ...adminAccountNavigation,
+        ]
+      : accountNavigation
 
   useEffect(() => {
     document.documentElement.classList.toggle(
@@ -390,6 +515,8 @@ export function DashboardLayout() {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
+        {/* Workspace section */}
+
         <div>
           <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Workspace
@@ -402,6 +529,28 @@ export function DashboardLayout() {
           </nav>
         </div>
 
+        {/* Administration section */}
+
+        {isAdmin && (
+          <>
+            <div className="my-5 border-t" />
+
+            <div>
+              <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Administration
+              </p>
+
+              <nav className="space-y-1">
+                {adminNavigation.map(
+                  renderNavigationItem,
+                )}
+              </nav>
+            </div>
+          </>
+        )}
+
+        {/* Account section */}
+
         <div className="my-5 border-t" />
 
         <div>
@@ -410,7 +559,7 @@ export function DashboardLayout() {
           </p>
 
           <nav className="space-y-1">
-            {accountNavigation.map(
+            {visibleAccountNavigation.map(
               renderNavigationItem,
             )}
           </nav>
@@ -431,6 +580,10 @@ export function DashboardLayout() {
 
               <p className="truncate text-xs text-muted-foreground">
                 {userEmail}
+              </p>
+
+              <p className="truncate text-xs capitalize text-muted-foreground">
+                {userRole}
               </p>
             </div>
           </div>
@@ -459,9 +612,13 @@ export function DashboardLayout() {
 
   return (
     <div className="min-h-screen bg-muted/20">
+      {/* Desktop sidebar */}
+
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 border-r bg-card lg:block">
         {sidebarContent}
       </aside>
+
+      {/* Mobile sidebar */}
 
       <div
         className={cn(
@@ -604,9 +761,7 @@ export function DashboardLayout() {
                       role="menuitem"
                       onClick={() => {
                         navigate("/profile")
-                        setProfileMenuOpen(
-                          false,
-                        )
+                        setProfileMenuOpen(false)
                       }}
                       className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition hover:bg-muted"
                     >
@@ -614,20 +769,20 @@ export function DashboardLayout() {
                       Profile
                     </button>
 
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        navigate("/settings")
-                        setProfileMenuOpen(
-                          false,
-                        )
-                      }}
-                      className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition hover:bg-muted"
-                    >
-                      <Settings className="h-4 w-4" />
-                      Settings
-                    </button>
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          navigate("/settings")
+                          setProfileMenuOpen(false)
+                        }}
+                        className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition hover:bg-muted"
+                      >
+                        <Settings className="h-4 w-4" />
+                        Settings
+                      </button>
+                    )}
                   </div>
 
                   <div className="border-t p-1.5">
@@ -638,10 +793,7 @@ export function DashboardLayout() {
                         logoutMutation.isPending
                       }
                       onClick={() => {
-                        setProfileMenuOpen(
-                          false,
-                        )
-
+                        setProfileMenuOpen(false)
                         void handleLogout()
                       }}
                       className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-destructive transition hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-60"

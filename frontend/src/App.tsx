@@ -36,6 +36,17 @@ import {
   UnauthorizedPage,
 } from "@/pages/auth/UnauthorizedPage"
 
+import AdminAuditLogsPage from "@/pages/admin/AdminAuditLogsPage"
+import AdminDashboardPage from "@/pages/admin/AdminDashboardPage"
+import AdminPermissionsPage from "@/pages/admin/AdminPermissionsPage"
+import AdminRolesPage from "@/pages/admin/AdminRolesPage"
+import AdminUsersPage from "@/pages/admin/AdminUsersPage"
+import RolePermissionsPage from "@/pages/admin/RolePermissionsPage"
+
+import {
+  AgentAnalyticsPage,
+} from "@/pages/analytics/AgentAnalyticsPage"
+
 import {
   AgentsPage,
 } from "@/pages/dashboard/AgentsPage"
@@ -79,10 +90,6 @@ import {
 } from "@/pages/dashboard/WorkflowsPage"
 
 import {
-  AgentAnalyticsPage,
-} from "@/pages/analytics/AgentAnalyticsPage"
-
-import {
   ProtectedRoute,
 } from "@/routes/ProtectedRoute"
 
@@ -123,26 +130,20 @@ function App() {
 
           <Route
             path="/forgot-password"
-            element={
-              <ForgotPasswordPage />
-            }
+            element={<ForgotPasswordPage />}
           />
 
           <Route
             path="/reset-password"
-            element={
-              <ResetPasswordPage />
-            }
+            element={<ResetPasswordPage />}
           />
         </Route>
       </Route>
 
       {/* Protected application routes */}
       <Route element={<ProtectedRoute />}>
-        <Route
-          element={<DashboardLayout />}
-        >
-          {/* Routes available to every authenticated user */}
+        <Route element={<DashboardLayout />}>
+          {/* Routes available to all authenticated users */}
           <Route
             path="/dashboard"
             element={<DashboardPage />}
@@ -155,16 +156,12 @@ function App() {
 
           <Route
             path="/prompt-templates"
-            element={
-              <PromptTemplatesPage />
-            }
+            element={<PromptTemplatesPage />}
           />
 
           <Route
             path="/knowledge-base"
-            element={
-              <KnowledgeBasePage />
-            }
+            element={<KnowledgeBasePage />}
           />
 
           <Route
@@ -187,9 +184,7 @@ function App() {
           >
             <Route
               path="/orchestrator"
-              element={
-                <OrchestratorPage />
-              }
+              element={<OrchestratorPage />}
             />
 
             <Route
@@ -199,30 +194,22 @@ function App() {
 
             <Route
               path="/workflows"
-              element={
-                <WorkflowsPage />
-              }
+              element={<WorkflowsPage />}
             />
 
             <Route
               path="/mcp-tools"
-              element={
-                <MCPToolsPage />
-              }
+              element={<MCPToolsPage />}
             />
 
             <Route
               path="/approvals"
-              element={
-                <ApprovalsPage />
-              }
+              element={<ApprovalsPage />}
             />
 
             <Route
               path="/analytics"
-              element={
-                <AgentAnalyticsPage />
-              }
+              element={<AgentAnalyticsPage />}
             />
           </Route>
 
@@ -230,17 +217,43 @@ function App() {
           <Route
             element={
               <RoleRoute
-                allowedRoles={[
-                  "Admin",
-                ]}
+                allowedRoles={["Admin"]}
               />
             }
           >
             <Route
+              path="/admin"
+              element={<AdminDashboardPage />}
+            />
+
+            <Route
+              path="/admin/users"
+              element={<AdminUsersPage />}
+            />
+
+            <Route
+              path="/admin/roles"
+              element={<AdminRolesPage />}
+            />
+
+            <Route
+              path="/admin/permissions"
+              element={<AdminPermissionsPage />}
+            />
+
+            <Route
+              path="/admin/role-permissions"
+              element={<RolePermissionsPage />}
+            />
+
+            <Route
+              path="/admin/audit-logs"
+              element={<AdminAuditLogsPage />}
+            />
+
+            <Route
               path="/settings"
-              element={
-                <SettingsPage />
-              }
+              element={<SettingsPage />}
             />
           </Route>
         </Route>
@@ -249,17 +262,13 @@ function App() {
       {/* Unauthorized page */}
       <Route
         path="/unauthorized"
-        element={
-          <UnauthorizedPage />
-        }
+        element={<UnauthorizedPage />}
       />
 
       {/* Catch-all route */}
       <Route
         path="*"
-        element={
-          <NotFoundPage />
-        }
+        element={<NotFoundPage />}
       />
     </Routes>
   )
