@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chromadb
+  namespace: enterprise-ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: chromadb }
+  template:
+    metadata:
+      labels: { app: chromadb }
+    spec:
+      containers:
+        - name: chromadb
+          image: chromadb/chroma:latest
+          ports: [{ containerPort: 8000 }]
+          volumeMounts:
+            - name: chroma-data
+              mountPath: /chroma/chroma
+      volumes:
+        - name: chroma-data
+          persistentVolumeClaim:
+            claimName: chroma-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: chroma-pvc
+  namespace: enterprise-ai
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests: { storage: 10Gi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chromadb
+  namespace: enterprise-ai
+spec:
+  selector: { app: chromadb }
+  ports: [{ port: 8000, targetPort: 8000 }]
