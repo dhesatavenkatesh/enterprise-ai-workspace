@@ -1,48 +1,37 @@
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-
-load_dotenv()
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.admin.router import router as admin_router
+from app.api.admin_permissions import router as admin_permissions_router
+from app.api.documents import router as documents_router
+from app.api.rag import router as rag_router
+from app.api.routes.agent_analytics import router as agent_analytics_router
+from app.api.routes.agents import router as agents_router
+from app.api.routes.approvals import router as approvals_router
+from app.api.routes.auth import router as auth_router
+from app.api.routes.chat_analytics import router as chat_analytics_router
+from app.api.routes.health import router as health_router
+from app.api.routes.mcp import router as mcp_router
+from app.api.routes.orchestrator import router as orchestrator_router
+from app.api.routes.prompt_templates import router as prompt_templates_router
+from app.api.routes.rbac import router as rbac_router
+from app.api.routes.sprint4_health import router as sprint4_health_router
+from app.api.routes.workflows import router as workflows_router
+from app.chat.chat_api import router as chat_router
 from app.database import models  # noqa: F401
 from app.database.base import Base
 from app.database.session import engine
 
-from app.admin.router import router as admin_router
-from app.api.documents import router as documents_router
-from app.api.rag import router as rag_router
-from app.api.routes.agent_analytics import (
-    router as agent_analytics_router,
-)
-from app.api.routes.agents import router as agents_router
-from app.api.routes.approvals import router as approvals_router
-from app.api.routes.auth import router as auth_router
-from app.api.routes.chat_analytics import (
-    router as chat_analytics_router,
-)
-from app.api.routes.health import router as health_router
-from app.api.routes.mcp import router as mcp_router
-from app.api.routes.orchestrator import (
-    router as orchestrator_router,
-)
-from app.api.routes.prompt_templates import (
-    router as prompt_templates_router,
-)
-from app.api.routes.rbac import router as rbac_router
-from app.api.routes.sprint4_health import (
-    router as sprint4_health_router,
-)
-from app.api.routes.workflows import router as workflows_router
-from app.chat.chat_api import router as chat_router
-from app.api.admin_permissions import (
-    router as admin_permissions_router,
-)
+load_dotenv()
+
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
+    """Handle application startup and shutdown tasks."""
+
     print("Starting Enterprise AI Workspace backend...")
 
     Base.metadata.create_all(bind=engine)
@@ -61,10 +50,7 @@ async def lifespan(application: FastAPI):
         for path in admin_paths:
             print(f"  - {path}")
     else:
-        print(
-            "WARNING: No Sprint 5 admin routes are registered. "
-            "Check app/admin/router.py."
-        )
+        print("WARNING: No Sprint 5 admin routes are registered. Check app/admin/router.py.")
 
     yield
 
@@ -107,6 +93,7 @@ app.include_router(rbac_router)
 app.include_router(admin_router)
 app.include_router(admin_permissions_router)
 
+
 # Chat and prompt management
 app.include_router(chat_router)
 app.include_router(prompt_templates_router)
@@ -137,9 +124,11 @@ app.include_router(agent_analytics_router)
     summary="API root endpoint",
 )
 def root() -> dict[str, str]:
+    """Return basic API information."""
+
     return {
         "message": "Enterprise AI Workspace API is running",
-        "version": "5.0.0",
+        "version": app.version,
         "documentation": "/docs",
     }
 
@@ -151,6 +140,8 @@ def root() -> dict[str, str]:
     include_in_schema=False,
 )
 def list_registered_routes() -> dict[str, list[dict[str, object]]]:
+    """Return all registered FastAPI routes."""
+
     routes: list[dict[str, object]] = []
 
     for route in app.routes:

@@ -42,7 +42,6 @@ from app.schemas.document import (
     DocumentUploadResponse,
 )
 
-
 router = APIRouter(
     prefix="/api/documents",
     tags=["Enterprise Knowledge Documents"],
@@ -170,17 +169,10 @@ def get_documents(
             document_status=document_status,
         )
 
-        total_pages = (
-            math.ceil(total / page_size)
-            if total > 0
-            else 0
-        )
+        total_pages = math.ceil(total / page_size) if total > 0 else 0
 
         return DocumentListResponse(
-            items=[
-                DocumentResponse.model_validate(document)
-                for document in documents
-            ],
+            items=[DocumentResponse.model_validate(document) for document in documents],
             total=total,
             page=page,
             page_size=page_size,

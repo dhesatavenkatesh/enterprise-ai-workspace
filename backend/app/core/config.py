@@ -1,4 +1,5 @@
 from functools import lru_cache
+
 from pydantic import Field
 from pydantic_settings import (
     BaseSettings,
@@ -7,9 +8,7 @@ from pydantic_settings import (
 
 
 class Settings(BaseSettings):
-    app_name: str = (
-        "Enterprise AI Workspace"
-    )
+    app_name: str = "Enterprise AI Workspace"
 
     app_env: str = "development"
     debug: bool = True

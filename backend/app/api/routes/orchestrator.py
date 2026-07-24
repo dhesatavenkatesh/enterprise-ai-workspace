@@ -38,20 +38,14 @@ def get_user_id(
     current_user: Any,
 ) -> str | None:
     if isinstance(current_user, dict):
-        value = (
-            current_user.get("id")
-            or current_user.get("user_id")
-        )
+        value = current_user.get("id") or current_user.get("user_id")
 
         return str(value) if value else None
 
-    value = (
-        getattr(current_user, "id", None)
-        or getattr(
-            current_user,
-            "user_id",
-            None,
-        )
+    value = getattr(current_user, "id", None) or getattr(
+        current_user,
+        "user_id",
+        None,
     )
 
     return str(value) if value else None

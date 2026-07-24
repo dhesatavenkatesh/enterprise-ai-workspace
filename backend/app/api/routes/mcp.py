@@ -12,13 +12,9 @@ from app.mcp.bootstrap import register_default_tools
 from app.mcp.executor import MCPExecutor
 from app.mcp.registry import mcp_tool_registry
 from app.mcp.schemas import (
-    MCPHealthResponse,
-    MCPToolCallRequest,
-    MCPToolCallResult,
     MCPToolDefinition,
 )
 from app.models.user import User
-
 
 router = APIRouter(
     prefix="/api/mcp",
@@ -43,24 +39,21 @@ def list_mcp_tools(
     return mcp_tool_registry.definitions()
 
 
-@router.get(
-    "/tools/{tool_name}",
-    response_model=MCPToolDefinition,
-    summary="Get MCP tool details",
-)
-def get_mcp_tool(
-    tool_name: str,
-    current_user: User = Depends(get_current_user),
-) -> MCPToolDefinition:
+@router.get("/tools/{tool_name}", response_model=MCPToolDefinition)
+def get_mcp_tool(tool_name: str) -> MCPToolDefinition:
     try:
         tool = mcp_tool_registry.get(tool_name)
-
     except KeyError as exc:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=response.model_dump(),
-        )
-    return response
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"MCP tool '{tool_name}' was not found.",
+        ) from exc
+
+    return MCPToolDefinition(
+        name=tool.name,
+        description=tool.description,
+        input_schema=tool.input_schema,
+    )
 
 
 @router.get("/health")

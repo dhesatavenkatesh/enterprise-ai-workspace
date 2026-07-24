@@ -36,11 +36,7 @@ def create_audit_log(
         user_id=user_id,
         action=action.strip().upper(),
         resource=resource.strip().lower() if resource else None,
-        resource_id=(
-            str(resource_id)
-            if resource_id is not None
-            else None
-        ),
+        resource_id=(str(resource_id) if resource_id is not None else None),
         ip_address=ip_address,
         details=details_value,
     )

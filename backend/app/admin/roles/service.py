@@ -29,13 +29,7 @@ def get_role_or_404(
 ) -> Role:
     statement = (
         select(Role)
-        .options(
-            selectinload(
-                Role.role_permissions
-            ).selectinload(
-                RolePermission.permission
-            )
-        )
+        .options(selectinload(Role.role_permissions).selectinload(RolePermission.permission))
         .where(Role.id == role_id)
     )
 
@@ -54,12 +48,7 @@ def get_role_by_name(
     db: Session,
     name: str,
 ) -> Role | None:
-    return db.scalar(
-        select(Role).where(
-            func.lower(Role.name)
-            == name.strip().lower()
-        )
-    )
+    return db.scalar(select(Role).where(func.lower(Role.name) == name.strip().lower()))
 
 
 def get_role_user_count(
@@ -68,9 +57,7 @@ def get_role_user_count(
 ) -> int:
     return (
         db.scalar(
-            select(
-                func.count(User.id)
-            ).where(
+            select(func.count(User.id)).where(
                 User.role_id == role_id,
                 User.is_deleted.is_(False),
             )
@@ -82,10 +69,7 @@ def get_role_user_count(
 def get_role_permission_ids(
     role: Role,
 ) -> list[int]:
-    return [
-        role_permission.permission_id
-        for role_permission in role.role_permissions
-    ]
+    return [role_permission.permission_id for role_permission in role.role_permissions]
 
 
 def build_permission_response(
@@ -112,9 +96,7 @@ def build_role_response(
         if permission is None:
             continue
 
-        permissions.append(
-            build_permission_response(permission)
-        )
+        permissions.append(build_permission_response(permission))
 
     permissions.sort(
         key=lambda item: (
@@ -147,10 +129,7 @@ def list_permissions(
         )
     ).all()
 
-    items = [
-        build_permission_response(permission)
-        for permission in permissions
-    ]
+    items = [build_permission_response(permission) for permission in permissions]
 
     return AdminPermissionListResponse(
         items=items,
@@ -162,34 +141,22 @@ def validate_permission_ids(
     db: Session,
     permission_ids: list[int],
 ) -> list[int]:
-    unique_ids = list(
-        dict.fromkeys(permission_ids)
-    )
+    unique_ids = list(dict.fromkeys(permission_ids))
 
     if not unique_ids:
         return []
 
-    existing_ids = set(
-        db.scalars(
-            select(Permission.id).where(
-                Permission.id.in_(unique_ids)
-            )
-        ).all()
-    )
+    existing_ids = set(db.scalars(select(Permission.id).where(Permission.id.in_(unique_ids))).all())
 
     missing_ids = [
-        permission_id
-        for permission_id in unique_ids
-        if permission_id not in existing_ids
+        permission_id for permission_id in unique_ids if permission_id not in existing_ids
     ]
 
     if missing_ids:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
-                "message": (
-                    "One or more permissions were not found"
-                ),
+                "message": ("One or more permissions were not found"),
                 "missing_permission_ids": missing_ids,
             },
         )
@@ -207,11 +174,7 @@ def replace_role_permissions(
         permission_ids=permission_ids,
     )
 
-    db.execute(
-        delete(RolePermission).where(
-            RolePermission.role_id == role_id
-        )
-    )
+    db.execute(delete(RolePermission).where(RolePermission.role_id == role_id))
 
     for permission_id in validated_ids:
         db.add(
@@ -227,17 +190,13 @@ def replace_role_permissions(
 def list_roles(
     db: Session,
 ) -> AdminRoleListResponse:
-    roles = db.scalars(
-        select(Role)
-        .options(
-            selectinload(
-                Role.role_permissions
-            )
+    roles = (
+        db.scalars(
+            select(Role).options(selectinload(Role.role_permissions)).order_by(Role.name.asc())
         )
-        .order_by(
-            Role.name.asc()
-        )
-    ).unique().all()
+        .unique()
+        .all()
+    )
 
     items = []
 
@@ -247,9 +206,7 @@ def list_roles(
                 id=role.id,
                 name=role.name,
                 description=role.description,
-                permission_count=len(
-                    role.role_permissions
-                ),
+                permission_count=len(role.role_permissions),
                 user_count=get_role_user_count(
                     db=db,
                     role_id=role.id,
@@ -328,9 +285,7 @@ def create_role(
             details={
                 "role_name": role.name,
                 "description": role.description,
-                "permission_ids": (
-                    validated_permission_ids
-                ),
+                "permission_ids": (validated_permission_ids),
             },
         )
 
@@ -381,8 +336,7 @@ def update_role(
     if "name" in update_data:
         duplicate_role = db.scalar(
             select(Role).where(
-                func.lower(Role.name)
-                == update_data["name"].lower(),
+                func.lower(Role.name) == update_data["name"].lower(),
                 Role.id != role.id,
             )
         )
@@ -402,9 +356,7 @@ def update_role(
         replace_role_permissions(
             db=db,
             role_id=role.id,
-            permission_ids=(
-                update_data["permission_ids"] or []
-            ),
+            permission_ids=(update_data["permission_ids"] or []),
         )
 
     try:
@@ -430,10 +382,7 @@ def update_role(
 
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                "Unable to update role because "
-                "the supplied data conflicts"
-            ),
+            detail=("Unable to update role because the supplied data conflicts"),
         ) from exc
 
     role = get_role_or_404(
@@ -460,9 +409,7 @@ def update_role_permissions(
         role_id=role_id,
     )
 
-    previous_permission_ids = (
-        get_role_permission_ids(role)
-    )
+    previous_permission_ids = get_role_permission_ids(role)
 
     validated_permission_ids = validate_permission_ids(
         db=db,
@@ -484,12 +431,8 @@ def update_role_permissions(
         ip_address=ip_address,
         details={
             "role_name": role.name,
-            "previous_permission_ids": (
-                previous_permission_ids
-            ),
-            "new_permission_ids": (
-                validated_permission_ids
-            ),
+            "previous_permission_ids": (previous_permission_ids),
+            "new_permission_ids": (validated_permission_ids),
         },
     )
 
@@ -527,8 +470,7 @@ def delete_role(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
-                "Cannot delete this role because it is "
-                f"assigned to {assigned_user_count} user(s)"
+                f"Cannot delete this role because it is assigned to {assigned_user_count} user(s)"
             ),
         )
 
@@ -548,11 +490,7 @@ def delete_role(
         details=role_details,
     )
 
-    db.execute(
-        delete(RolePermission).where(
-            RolePermission.role_id == role.id
-        )
-    )
+    db.execute(delete(RolePermission).where(RolePermission.role_id == role.id))
 
     db.delete(role)
     db.commit()

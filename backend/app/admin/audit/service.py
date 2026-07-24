@@ -23,21 +23,13 @@ def list_audit_logs(
     filters = []
 
     if action:
-        filters.append(
-            func.lower(AuditLog.action)
-            == action.strip().lower()
-        )
+        filters.append(func.lower(AuditLog.action) == action.strip().lower())
 
     if resource:
-        filters.append(
-            func.lower(AuditLog.resource)
-            == resource.strip().lower()
-        )
+        filters.append(func.lower(AuditLog.resource) == resource.strip().lower())
 
     if user_id is not None:
-        filters.append(
-            AuditLog.user_id == user_id
-        )
+        filters.append(AuditLog.user_id == user_id)
 
     if search and search.strip():
         search_value = f"%{search.strip()}%"
@@ -52,9 +44,7 @@ def list_audit_logs(
             )
         )
 
-    count_query = select(
-        func.count(AuditLog.id)
-    )
+    count_query = select(func.count(AuditLog.id))
 
     if filters:
         count_query = count_query.where(*filters)
@@ -67,8 +57,7 @@ def list_audit_logs(
         query = query.where(*filters)
 
     query = (
-        query
-        .order_by(
+        query.order_by(
             AuditLog.created_at.desc(),
             AuditLog.id.desc(),
         )
@@ -78,16 +67,9 @@ def list_audit_logs(
 
     records = db.scalars(query).all()
 
-    items = [
-        AdminAuditLogResponse.model_validate(record)
-        for record in records
-    ]
+    items = [AdminAuditLogResponse.model_validate(record) for record in records]
 
-    total_pages = (
-        math.ceil(total / page_size)
-        if total > 0
-        else 0
-    )
+    total_pages = math.ceil(total / page_size) if total > 0 else 0
 
     return AdminAuditLogListResponse(
         items=items,

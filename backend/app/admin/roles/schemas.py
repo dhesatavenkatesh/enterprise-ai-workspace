@@ -35,9 +35,7 @@ class AdminRoleCreate(BaseModel):
     description: str | None = Field(
         default=None,
         max_length=500,
-        examples=[
-            "Manager role with reporting access"
-        ],
+        examples=["Manager role with reporting access"],
     )
 
     permission_ids: list[int] = Field(
@@ -54,9 +52,7 @@ class AdminRoleCreate(BaseModel):
         cleaned_value = value.strip()
 
         if not cleaned_value:
-            raise ValueError(
-                "Role name cannot be empty"
-            )
+            raise ValueError("Role name cannot be empty")
 
         return cleaned_value
 
@@ -79,17 +75,10 @@ class AdminRoleCreate(BaseModel):
         cls,
         value: list[int],
     ) -> list[int]:
-        if any(
-            permission_id <= 0
-            for permission_id in value
-        ):
-            raise ValueError(
-                "Permission IDs must be positive"
-            )
+        if any(permission_id <= 0 for permission_id in value):
+            raise ValueError("Permission IDs must be positive")
 
-        return list(
-            dict.fromkeys(value)
-        )
+        return list(dict.fromkeys(value))
 
 
 class AdminRoleUpdate(BaseModel):
@@ -121,9 +110,7 @@ class AdminRoleUpdate(BaseModel):
         cleaned_value = value.strip()
 
         if not cleaned_value:
-            raise ValueError(
-                "Role name cannot be empty"
-            )
+            raise ValueError("Role name cannot be empty")
 
         return cleaned_value
 
@@ -149,17 +136,10 @@ class AdminRoleUpdate(BaseModel):
         if value is None:
             return None
 
-        if any(
-            permission_id <= 0
-            for permission_id in value
-        ):
-            raise ValueError(
-                "Permission IDs must be positive"
-            )
+        if any(permission_id <= 0 for permission_id in value):
+            raise ValueError("Permission IDs must be positive")
 
-        return list(
-            dict.fromkeys(value)
-        )
+        return list(dict.fromkeys(value))
 
 
 class AdminRolePermissionUpdate(BaseModel):
@@ -174,17 +154,10 @@ class AdminRolePermissionUpdate(BaseModel):
         cls,
         value: list[int],
     ) -> list[int]:
-        if any(
-            permission_id <= 0
-            for permission_id in value
-        ):
-            raise ValueError(
-                "Permission IDs must be positive"
-            )
+        if any(permission_id <= 0 for permission_id in value):
+            raise ValueError("Permission IDs must be positive")
 
-        return list(
-            dict.fromkeys(value)
-        )
+        return list(dict.fromkeys(value))
 
 
 class AdminRoleResponse(BaseModel):
@@ -192,9 +165,7 @@ class AdminRoleResponse(BaseModel):
     name: str
     description: str | None = None
 
-    permissions: list[
-        AdminPermissionResponse
-    ] = Field(
+    permissions: list[AdminPermissionResponse] = Field(
         default_factory=list,
     )
 

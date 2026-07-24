@@ -38,10 +38,7 @@ class ApprovalStore:
         if status is not None:
             items = [item for item in items if item.status == status]
         if requested_by is not None:
-            items = [
-                item for item in items
-                if str(item.requested_by) == str(requested_by)
-            ]
+            items = [item for item in items if str(item.requested_by) == str(requested_by)]
         return sorted(items, key=lambda item: item.created_at, reverse=True)
 
 

@@ -13,7 +13,6 @@ from app.api.dependencies.rbac import require_admin
 from app.database.session import get_db
 from app.models.user import User
 
-
 router = APIRouter(
     prefix="/dashboard",
     tags=["Sprint 5 - Admin Dashboard"],

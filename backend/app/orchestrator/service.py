@@ -35,7 +35,9 @@ class AgentOrchestrator:
             )
 
     @staticmethod
-    def _build_agent_request(payload: OrchestratorRequest, user_id: int | str | None) -> AgentRequest:
+    def _build_agent_request(
+        payload: OrchestratorRequest, user_id: int | str | None
+    ) -> AgentRequest:
         return AgentRequest(
             message=payload.message,
             user_id=user_id,
@@ -44,13 +46,19 @@ class AgentOrchestrator:
             metadata=payload.metadata,
         )
 
-    async def auto_route(self, payload: OrchestratorRequest, *, user_id: int | str | None = None) -> OrchestratorResponse:
+    async def auto_route(
+        self, payload: OrchestratorRequest, *, user_id: int | str | None = None
+    ) -> OrchestratorResponse:
         route = self.router.route(payload.message, max_agents=1)
         request = self._build_agent_request(payload, user_id)
         results = [await self.executor.execute(request, route.agent_names[0])]
-        return self._response(OrchestrationMode.AUTO, route.agent_names, route.reason, route.confidence, results)
+        return self._response(
+            OrchestrationMode.AUTO, route.agent_names, route.reason, route.confidence, results
+        )
 
-    async def execute_single(self, payload: OrchestratorRequest, *, user_id: int | str | None = None) -> OrchestratorResponse:
+    async def execute_single(
+        self, payload: OrchestratorRequest, *, user_id: int | str | None = None
+    ) -> OrchestratorResponse:
         if not payload.agent_name:
             raise ValueError("agent_name is required for single-agent execution.")
         self._validate_agents([payload.agent_name])
@@ -64,7 +72,9 @@ class AgentOrchestrator:
             results,
         )
 
-    async def execute_multi(self, payload: OrchestratorRequest, *, user_id: int | str | None = None) -> OrchestratorResponse:
+    async def execute_multi(
+        self, payload: OrchestratorRequest, *, user_id: int | str | None = None
+    ) -> OrchestratorResponse:
         names = payload.agent_names
         if not names:
             route = self.router.route(payload.message, max_agents=3)

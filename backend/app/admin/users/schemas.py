@@ -78,9 +78,7 @@ class AdminPasswordReset(BaseModel):
         self,
     ) -> "AdminPasswordReset":
         if self.new_password != self.confirm_password:
-            raise ValueError(
-                "New password and confirm password must match"
-            )
+            raise ValueError("New password and confirm password must match")
 
         return self
 

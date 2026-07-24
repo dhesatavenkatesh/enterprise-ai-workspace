@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Iterable, Sequence
 from functools import lru_cache
-from typing import Any, Iterable, Sequence
+from typing import Any
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
-
 
 logger = logging.getLogger(__name__)
 
@@ -35,25 +35,21 @@ DEFAULT_EMBEDDING_DIMENSION = int(
     )
 )
 
-DEFAULT_NORMALIZE_EMBEDDINGS = (
-    os.getenv(
-        "NORMALIZE_EMBEDDINGS",
-        "true",
-    )
-    .strip()
-    .lower()
-    in {
-        "true",
-        "1",
-        "yes",
-        "on",
-    }
-)
+DEFAULT_NORMALIZE_EMBEDDINGS = os.getenv(
+    "NORMALIZE_EMBEDDINGS",
+    "true",
+).strip().lower() in {
+    "true",
+    "1",
+    "yes",
+    "on",
+}
 
 
 # =============================================================================
 # Exceptions
 # =============================================================================
+
 
 class EmbeddingServiceError(Exception):
     """
@@ -77,22 +73,19 @@ class InvalidEmbeddingError(EmbeddingServiceError):
 # Validation helpers
 # =============================================================================
 
+
 def _clean_text(text: str) -> str:
     """
     Validate and clean one text value.
     """
 
     if not isinstance(text, str):
-        raise InvalidEmbeddingError(
-            "Embedding input must be a string."
-        )
+        raise InvalidEmbeddingError("Embedding input must be a string.")
 
     cleaned_text = text.strip()
 
     if not cleaned_text:
-        raise EmptyEmbeddingInputError(
-            "Cannot generate an embedding for empty text."
-        )
+        raise EmptyEmbeddingInputError("Cannot generate an embedding for empty text.")
 
     return cleaned_text
 
@@ -105,19 +98,12 @@ def _clean_texts(
     """
 
     if texts is None:
-        raise EmptyEmbeddingInputError(
-            "Embedding input cannot be None."
-        )
+        raise EmptyEmbeddingInputError("Embedding input cannot be None.")
 
-    cleaned_texts = [
-        _clean_text(text)
-        for text in texts
-    ]
+    cleaned_texts = [_clean_text(text) for text in texts]
 
     if not cleaned_texts:
-        raise EmptyEmbeddingInputError(
-            "At least one text value is required."
-        )
+        raise EmptyEmbeddingInputError("At least one text value is required.")
 
     return cleaned_texts
 
@@ -130,16 +116,9 @@ def _embedding_to_list(
     """
 
     if isinstance(embedding, np.ndarray):
-        return (
-            embedding
-            .astype(np.float32)
-            .tolist()
-        )
+        return embedding.astype(np.float32).tolist()
 
-    return [
-        float(value)
-        for value in embedding
-    ]
+    return [float(value) for value in embedding]
 
 
 def validate_embedding(
@@ -153,26 +132,17 @@ def validate_embedding(
     """
 
     if embedding is None:
-        raise InvalidEmbeddingError(
-            "Embedding cannot be None."
-        )
+        raise InvalidEmbeddingError("Embedding cannot be None.")
 
     if isinstance(embedding, str):
-        raise InvalidEmbeddingError(
-            "Embedding must be a numeric sequence."
-        )
+        raise InvalidEmbeddingError("Embedding must be a numeric sequence.")
 
     vector_dimension = len(embedding)
 
     if vector_dimension == 0:
-        raise InvalidEmbeddingError(
-            "Embedding vector cannot be empty."
-        )
+        raise InvalidEmbeddingError("Embedding vector cannot be empty.")
 
-    if (
-        expected_dimension is not None
-        and vector_dimension != expected_dimension
-    ):
+    if expected_dimension is not None and vector_dimension != expected_dimension:
         raise InvalidEmbeddingError(
             "Embedding dimension mismatch. "
             f"Expected {expected_dimension}, "
@@ -189,14 +159,10 @@ def validate_embedding(
                 np.floating,
             ),
         ):
-            raise InvalidEmbeddingError(
-                "Embedding contains a non-numeric value."
-            )
+            raise InvalidEmbeddingError("Embedding contains a non-numeric value.")
 
         if not np.isfinite(float(value)):
-            raise InvalidEmbeddingError(
-                "Embedding contains NaN or infinite values."
-            )
+            raise InvalidEmbeddingError("Embedding contains NaN or infinite values.")
 
     return vector_dimension
 
@@ -219,6 +185,7 @@ def validate_embedding_dimension(
 # Model loader
 # =============================================================================
 
+
 @lru_cache(maxsize=4)
 def get_embedding_model(
     model_name: str = DEFAULT_EMBEDDING_MODEL,
@@ -228,9 +195,7 @@ def get_embedding_model(
     """
 
     resolved_model_name = (
-        model_name.strip()
-        if model_name and model_name.strip()
-        else DEFAULT_EMBEDDING_MODEL
+        model_name.strip() if model_name and model_name.strip() else DEFAULT_EMBEDDING_MODEL
     )
 
     try:
@@ -239,9 +204,7 @@ def get_embedding_model(
             resolved_model_name,
         )
 
-        model = SentenceTransformer(
-            resolved_model_name
-        )
+        model = SentenceTransformer(resolved_model_name)
 
         logger.info(
             "Embedding model loaded successfully: %s",
@@ -257,14 +220,14 @@ def get_embedding_model(
         )
 
         raise EmbeddingServiceError(
-            "Unable to load embedding model "
-            f"'{resolved_model_name}': {exc}"
+            f"Unable to load embedding model '{resolved_model_name}': {exc}"
         ) from exc
 
 
 # =============================================================================
 # Embedding service
 # =============================================================================
+
 
 class EmbeddingService:
     """
@@ -276,25 +239,17 @@ class EmbeddingService:
         *,
         model_name: str = DEFAULT_EMBEDDING_MODEL,
         batch_size: int = DEFAULT_BATCH_SIZE,
-        normalize_embeddings: bool = (
-            DEFAULT_NORMALIZE_EMBEDDINGS
-        ),
+        normalize_embeddings: bool = (DEFAULT_NORMALIZE_EMBEDDINGS),
     ) -> None:
         if not model_name or not model_name.strip():
-            raise ValueError(
-                "model_name cannot be empty."
-            )
+            raise ValueError("model_name cannot be empty.")
 
         if batch_size <= 0:
-            raise ValueError(
-                "batch_size must be greater than zero."
-            )
+            raise ValueError("batch_size must be greater than zero.")
 
         self.model_name = model_name.strip()
         self.batch_size = batch_size
-        self.normalize_embeddings = (
-            normalize_embeddings
-        )
+        self.normalize_embeddings = normalize_embeddings
 
         self._model: SentenceTransformer | None = None
         self._embedding_dimension: int | None = None
@@ -306,9 +261,7 @@ class EmbeddingService:
         """
 
         if self._model is None:
-            self._model = get_embedding_model(
-                self.model_name
-            )
+            self._model = get_embedding_model(self.model_name)
 
         return self._model
 
@@ -324,17 +277,12 @@ class EmbeddingService:
             return self._embedding_dimension
 
         try:
-            dimension = (
-                self.model
-                .get_sentence_embedding_dimension()
-            )
+            dimension = self.model.get_sentence_embedding_dimension()
 
             if dimension is None:
                 dimension = DEFAULT_EMBEDDING_DIMENSION
 
-            self._embedding_dimension = int(
-                dimension
-            )
+            self._embedding_dimension = int(dimension)
 
             return self._embedding_dimension
 
@@ -344,9 +292,7 @@ class EmbeddingService:
                 exc,
             )
 
-            self._embedding_dimension = (
-                DEFAULT_EMBEDDING_DIMENSION
-            )
+            self._embedding_dimension = DEFAULT_EMBEDDING_DIMENSION
 
             return self._embedding_dimension
 
@@ -372,21 +318,15 @@ class EmbeddingService:
             embedding = self.model.encode(
                 cleaned_text,
                 convert_to_numpy=True,
-                normalize_embeddings=(
-                    self.normalize_embeddings
-                ),
+                normalize_embeddings=(self.normalize_embeddings),
                 show_progress_bar=False,
             )
 
-            vector = _embedding_to_list(
-                embedding
-            )
+            vector = _embedding_to_list(embedding)
 
             validate_embedding(
                 embedding=vector,
-                expected_dimension=(
-                    self.embedding_dimension
-                ),
+                expected_dimension=(self.embedding_dimension),
             )
 
             return vector
@@ -395,13 +335,9 @@ class EmbeddingService:
             raise
 
         except Exception as exc:
-            logger.exception(
-                "Unable to generate embedding."
-            )
+            logger.exception("Unable to generate embedding.")
 
-            raise EmbeddingServiceError(
-                f"Unable to generate embedding: {exc}"
-            ) from exc
+            raise EmbeddingServiceError(f"Unable to generate embedding: {exc}") from exc
 
     def embed_texts(
         self,
@@ -415,45 +351,31 @@ class EmbeddingService:
 
         cleaned_texts = _clean_texts(texts)
 
-        resolved_batch_size = (
-            batch_size
-            if batch_size is not None
-            else self.batch_size
-        )
+        resolved_batch_size = batch_size if batch_size is not None else self.batch_size
 
         if resolved_batch_size <= 0:
-            raise ValueError(
-                "batch_size must be greater than zero."
-            )
+            raise ValueError("batch_size must be greater than zero.")
 
         try:
             embeddings = self.model.encode(
                 cleaned_texts,
                 batch_size=resolved_batch_size,
                 convert_to_numpy=True,
-                normalize_embeddings=(
-                    self.normalize_embeddings
-                ),
+                normalize_embeddings=(self.normalize_embeddings),
                 show_progress_bar=False,
             )
 
-            vectors = [
-                _embedding_to_list(embedding)
-                for embedding in embeddings
-            ]
+            vectors = [_embedding_to_list(embedding) for embedding in embeddings]
 
             if len(vectors) != len(cleaned_texts):
                 raise InvalidEmbeddingError(
-                    "Generated embedding count does not "
-                    "match the number of input texts."
+                    "Generated embedding count does not match the number of input texts."
                 )
 
             for vector in vectors:
                 validate_embedding(
                     embedding=vector,
-                    expected_dimension=(
-                        self.embedding_dimension
-                    ),
+                    expected_dimension=(self.embedding_dimension),
                 )
 
             logger.info(
@@ -468,14 +390,9 @@ class EmbeddingService:
             raise
 
         except Exception as exc:
-            logger.exception(
-                "Unable to generate batch embeddings."
-            )
+            logger.exception("Unable to generate batch embeddings.")
 
-            raise EmbeddingServiceError(
-                "Unable to generate batch embeddings: "
-                f"{exc}"
-            ) from exc
+            raise EmbeddingServiceError(f"Unable to generate batch embeddings: {exc}") from exc
 
     def generate_embedding(
         self,
@@ -536,9 +453,7 @@ class EmbeddingService:
         """
 
         if not chunks:
-            raise EmptyEmbeddingInputError(
-                "At least one document chunk is required."
-            )
+            raise EmptyEmbeddingInputError("At least one document chunk is required.")
 
         texts: list[str] = []
 
@@ -551,25 +466,19 @@ class EmbeddingService:
 
             if not isinstance(content, str):
                 raise InvalidEmbeddingError(
-                    f"Chunk at position {index} "
-                    "does not contain valid content."
+                    f"Chunk at position {index} does not contain valid content."
                 )
 
-            texts.append(
-                _clean_text(content)
-            )
+            texts.append(_clean_text(content))
 
-        vectors = self.embed_texts(
-            texts
-        )
+        vectors = self.embed_texts(texts)
 
-        embedded_chunks: list[
-            dict[str, Any]
-        ] = []
+        embedded_chunks: list[dict[str, Any]] = []
 
         for chunk, vector in zip(
             chunks,
             vectors,
+            strict=True,
         ):
             metadata = dict(
                 getattr(
@@ -588,32 +497,19 @@ class EmbeddingService:
                 )
             )
 
-            document_id = metadata.get(
-                "document_id"
-            )
+            document_id = metadata.get("document_id")
 
             if not document_id:
-                raise InvalidEmbeddingError(
-                    "Chunk metadata must contain "
-                    "'document_id'."
-                )
+                raise InvalidEmbeddingError("Chunk metadata must contain 'document_id'.")
 
-            vector_id = (
-                f"{document_id}:{chunk_index}"
-            )
+            vector_id = f"{document_id}:{chunk_index}"
 
             metadata.update(
                 {
-                    "document_id": str(
-                        document_id
-                    ),
+                    "document_id": str(document_id),
                     "chunk_index": chunk_index,
-                    "embedding_model": (
-                        self.model_name
-                    ),
-                    "vector_dimension": (
-                        self.embedding_dimension
-                    ),
+                    "embedding_model": (self.model_name),
+                    "vector_dimension": (self.embedding_dimension),
                     "vector_id": vector_id,
                 }
             )
@@ -634,13 +530,12 @@ class EmbeddingService:
 # Cached embedding service
 # =============================================================================
 
+
 @lru_cache(maxsize=4)
 def get_embedding_service(
     model_name: str = DEFAULT_EMBEDDING_MODEL,
     batch_size: int = DEFAULT_BATCH_SIZE,
-    normalize_embeddings: bool = (
-        DEFAULT_NORMALIZE_EMBEDDINGS
-    ),
+    normalize_embeddings: bool = (DEFAULT_NORMALIZE_EMBEDDINGS),
 ) -> EmbeddingService:
     """
     Return a cached EmbeddingService instance.
@@ -657,6 +552,7 @@ def get_embedding_service(
 # Function-based API
 # =============================================================================
 
+
 def generate_embedding(
     text: str,
     model_name: str = DEFAULT_EMBEDDING_MODEL,
@@ -665,13 +561,9 @@ def generate_embedding(
     Generate an embedding for one text value.
     """
 
-    service = get_embedding_service(
-        model_name=model_name
-    )
+    service = get_embedding_service(model_name=model_name)
 
-    return service.generate_embedding(
-        text
-    )
+    return service.generate_embedding(text)
 
 
 def generate_embeddings(
@@ -698,6 +590,7 @@ def generate_embeddings(
 # Similarity utility
 # =============================================================================
 
+
 def cosine_similarity(
     vector_a: Sequence[float],
     vector_b: Sequence[float],
@@ -710,9 +603,7 @@ def cosine_similarity(
     validate_embedding(vector_b)
 
     if len(vector_a) != len(vector_b):
-        raise InvalidEmbeddingError(
-            "Vectors must have the same dimension."
-        )
+        raise InvalidEmbeddingError("Vectors must have the same dimension.")
 
     array_a = np.asarray(
         vector_a,
@@ -724,17 +615,17 @@ def cosine_similarity(
         dtype=np.float32,
     )
 
-    denominator = (
-        np.linalg.norm(array_a)
-        * np.linalg.norm(array_b)
-    )
+    denominator = np.linalg.norm(array_a) * np.linalg.norm(array_b)
 
     if denominator == 0:
         return 0.0
 
-    similarity = np.dot(
-        array_a,
-        array_b,
-    ) / denominator
+    similarity = (
+        np.dot(
+            array_a,
+            array_b,
+        )
+        / denominator
+    )
 
     return float(similarity)

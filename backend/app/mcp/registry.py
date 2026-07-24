@@ -14,8 +14,7 @@ class MCPToolProtocol(Protocol):
     async def execute(
         self,
         arguments: dict[str, Any],
-    ) -> Any:
-        ...
+    ) -> Any: ...
 
 
 class MCPToolRegistry:
@@ -34,9 +33,7 @@ class MCPToolRegistry:
             raise ValueError("Tool name cannot be empty.")
 
         if normalized_name in self._tools and not replace:
-            raise ValueError(
-                f"MCP tool '{normalized_name}' is already registered."
-            )
+            raise ValueError(f"MCP tool '{normalized_name}' is already registered.")
 
         self._tools[normalized_name] = tool
         return tool
@@ -50,9 +47,7 @@ class MCPToolRegistry:
         tool = self._tools.get(normalized_name)
 
         if tool is None:
-            raise KeyError(
-                f"MCP tool '{tool_name}' is not registered."
-            )
+            raise KeyError(f"MCP tool '{tool_name}' is not registered.")
 
         return tool
 

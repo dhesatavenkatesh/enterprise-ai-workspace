@@ -181,9 +181,7 @@ def require_roles(
     """
 
     normalized_allowed_roles = {
-        role.strip().lower()
-        for role in allowed_roles
-        if role and role.strip()
+        role.strip().lower() for role in allowed_roles if role and role.strip()
     }
 
     def role_checker(
@@ -191,15 +189,10 @@ def require_roles(
     ) -> User:
         current_roles = get_user_roles(current_user)
 
-        if not current_roles.intersection(
-            normalized_allowed_roles
-        ):
+        if not current_roles.intersection(normalized_allowed_roles):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=(
-                    "You do not have permission to perform "
-                    "this action."
-                ),
+                detail=("You do not have permission to perform this action."),
             )
 
         return current_user
@@ -222,9 +215,7 @@ def require_permission(
         )
     """
 
-    normalized_required_permission = (
-        permission_name.strip().lower()
-    )
+    normalized_required_permission = permission_name.strip().lower()
 
     def permission_checker(
         current_user: User = Depends(get_current_user),
@@ -234,19 +225,13 @@ def require_permission(
         if "admin" in current_roles:
             return current_user
 
-        current_permissions = get_user_permissions(
-            current_user
-        )
+        current_permissions = get_user_permissions(current_user)
 
-        if (
-            normalized_required_permission
-            not in current_permissions
-        ):
+        if normalized_required_permission not in current_permissions:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=(
-                    "You do not have the required permission: "
-                    f"{normalized_required_permission}"
+                    f"You do not have the required permission: {normalized_required_permission}"
                 ),
             )
 
@@ -278,19 +263,12 @@ def require_any_permission(
         if "admin" in current_roles:
             return current_user
 
-        current_permissions = get_user_permissions(
-            current_user
-        )
+        current_permissions = get_user_permissions(current_user)
 
-        if not current_permissions.intersection(
-            normalized_permissions
-        ):
+        if not current_permissions.intersection(normalized_permissions):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=(
-                    "You do not have any of the required "
-                    "permissions."
-                ),
+                detail=("You do not have any of the required permissions."),
             )
 
         return current_user
@@ -321,25 +299,16 @@ def require_all_permissions(
         if "admin" in current_roles:
             return current_user
 
-        current_permissions = get_user_permissions(
-            current_user
-        )
+        current_permissions = get_user_permissions(current_user)
 
-        missing_permissions = (
-            normalized_permissions - current_permissions
-        )
+        missing_permissions = normalized_permissions - current_permissions
 
         if missing_permissions:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail={
-                    "message": (
-                        "You do not have all required "
-                        "permissions."
-                    ),
-                    "missing_permissions": sorted(
-                        missing_permissions
-                    ),
+                    "message": ("You do not have all required permissions."),
+                    "missing_permissions": sorted(missing_permissions),
                 },
             )
 
@@ -349,9 +318,7 @@ def require_all_permissions(
 
 
 def require_admin(
-    current_user: User = Depends(
-        require_roles("admin")
-    ),
+    current_user: User = Depends(require_roles("admin")),
 ) -> User:
     """
     Allow administrators only.
@@ -361,9 +328,7 @@ def require_admin(
 
 
 def require_admin_or_manager(
-    current_user: User = Depends(
-        require_roles("admin", "manager")
-    ),
+    current_user: User = Depends(require_roles("admin", "manager")),
 ) -> User:
     """
     Allow administrators and managers.

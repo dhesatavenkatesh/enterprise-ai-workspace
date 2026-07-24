@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     BigInteger,
@@ -17,6 +18,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from app.database.base import Base
+
+if TYPE_CHECKING:
+    from app.models.document_chunk import DocumentChunk
 
 
 class Document(Base):
@@ -148,7 +152,7 @@ class Document(Base):
         nullable=True,
     )
 
-    chunks: Mapped[list["DocumentChunk"]] = relationship(
+    chunks: Mapped[list[DocumentChunk]] = relationship(
         "DocumentChunk",
         back_populates="document",
         cascade="all, delete-orphan",

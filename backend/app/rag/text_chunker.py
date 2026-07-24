@@ -3,8 +3,6 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from typing import Optional
-
 
 logger = logging.getLogger(__name__)
 
@@ -94,34 +92,20 @@ def find_best_split_position(
     if target_end >= len(text):
         return len(text)
 
-    search_region = text[
-        minimum_end:target_end
-    ]
+    search_region = text[minimum_end:target_end]
 
     if not search_region:
         return target_end
 
-    paragraph_position = search_region.rfind(
-        "\n\n"
-    )
+    paragraph_position = search_region.rfind("\n\n")
 
     if paragraph_position != -1:
-        return (
-            minimum_end
-            + paragraph_position
-            + 2
-        )
+        return minimum_end + paragraph_position + 2
 
-    line_position = search_region.rfind(
-        "\n"
-    )
+    line_position = search_region.rfind("\n")
 
     if line_position != -1:
-        return (
-            minimum_end
-            + line_position
-            + 1
-        )
+        return minimum_end + line_position + 1
 
     sentence_positions = [
         search_region.rfind(". "),
@@ -129,27 +113,15 @@ def find_best_split_position(
         search_region.rfind("! "),
     ]
 
-    sentence_position = max(
-        sentence_positions
-    )
+    sentence_position = max(sentence_positions)
 
     if sentence_position != -1:
-        return (
-            minimum_end
-            + sentence_position
-            + 2
-        )
+        return minimum_end + sentence_position + 2
 
-    space_position = search_region.rfind(
-        " "
-    )
+    space_position = search_region.rfind(" ")
 
     if space_position != -1:
-        return (
-            minimum_end
-            + space_position
-            + 1
-        )
+        return minimum_end + space_position + 1
 
     return target_end
 
@@ -158,9 +130,9 @@ def split_text_into_chunks(
     text: str,
     chunk_size: int = 1000,
     chunk_overlap: int = 200,
-    document_id: Optional[str] = None,
-    source_name: Optional[str] = None,
-    extra_metadata: Optional[dict] = None,
+    document_id: str | None = None,
+    source_name: str | None = None,
+    extra_metadata: dict | None = None,
 ) -> list[TextChunk]:
     """
     Split extracted text into overlapping chunks.
@@ -189,32 +161,22 @@ def split_text_into_chunks(
     """
 
     if chunk_size <= 0:
-        raise ValueError(
-            "chunk_size must be greater than zero."
-        )
+        raise ValueError("chunk_size must be greater than zero.")
 
     if chunk_overlap < 0:
-        raise ValueError(
-            "chunk_overlap cannot be negative."
-        )
+        raise ValueError("chunk_overlap cannot be negative.")
 
     if chunk_overlap >= chunk_size:
-        raise ValueError(
-            "chunk_overlap must be smaller than chunk_size."
-        )
+        raise ValueError("chunk_overlap must be smaller than chunk_size.")
 
-    cleaned_text = clean_text_for_chunking(
-        text
-    )
+    cleaned_text = clean_text_for_chunking(text)
 
     if not cleaned_text:
         return []
 
     chunks: list[TextChunk] = []
 
-    text_length = len(
-        cleaned_text
-    )
+    text_length = len(cleaned_text)
 
     start = 0
     chunk_index = 0
@@ -245,9 +207,7 @@ def split_text_into_chunks(
         if end <= start:
             end = target_end
 
-        chunk_content = cleaned_text[
-            start:end
-        ].strip()
+        chunk_content = cleaned_text[start:end].strip()
 
         if chunk_content:
             metadata = {
@@ -257,37 +217,25 @@ def split_text_into_chunks(
             }
 
             if document_id is not None:
-                metadata["document_id"] = str(
-                    document_id
-                )
+                metadata["document_id"] = str(document_id)
 
             if source_name is not None:
-                metadata["source_name"] = (
-                    source_name
-                )
+                metadata["source_name"] = source_name
 
             if extra_metadata:
-                metadata.update(
-                    extra_metadata
-                )
+                metadata.update(extra_metadata)
 
             chunk = TextChunk(
                 chunk_index=chunk_index,
                 content=chunk_content,
                 start_character=start,
                 end_character=end,
-                character_count=len(
-                    chunk_content
-                ),
-                word_count=count_words(
-                    chunk_content
-                ),
+                character_count=len(chunk_content),
+                word_count=count_words(chunk_content),
                 metadata=metadata,
             )
 
-            chunks.append(
-                chunk
-            )
+            chunks.append(chunk)
 
             chunk_index += 1
 

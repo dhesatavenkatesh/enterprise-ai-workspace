@@ -17,7 +17,6 @@ from app.admin.audit.service import (
 )
 from app.database.session import get_db
 
-
 router = APIRouter(
     prefix="/audit-logs",
     tags=["Sprint 5 - Audit Logs"],
@@ -85,6 +84,4 @@ def get_single_audit_log(
             detail="Audit log not found",
         )
 
-    return AdminAuditLogResponse.model_validate(
-        audit_log
-    )
+    return AdminAuditLogResponse.model_validate(audit_log)

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any
 from uuid import uuid4
 
@@ -9,21 +9,21 @@ from pydantic import BaseModel, Field, field_validator
 
 
 def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
-class WorkflowStepType(str, Enum):
+class WorkflowStepType(StrEnum):
     AGENT = "agent"
     MCP_TOOL = "mcp_tool"
 
 
-class WorkflowStatus(str, Enum):
+class WorkflowStatus(StrEnum):
     DRAFT = "draft"
     ACTIVE = "active"
     DISABLED = "disabled"
 
 
-class WorkflowRunStatus(str, Enum):
+class WorkflowRunStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
     WAITING_APPROVAL = "waiting_approval"

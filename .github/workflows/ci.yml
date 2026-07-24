@@ -1,0 +1,625 @@
+name: Enterprise AI CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - "feature/**"
+      - "release/**"
+
+  pull_request:
+    branches:
+      - main
+      - develop
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+  actions: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "22"
+
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ${{ github.repository_owner }}/enterprise-ai-backend
+  FRONTEND_IMAGE: ${{ github.repository_owner }}/enterprise-ai-frontend
+
+jobs:
+  # ==========================================================
+  # Determine application version
+  # ==========================================================
+  version:
+    name: Generate Version
+    runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      short_sha: ${{ steps.version.outputs.short_sha }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate build version
+        id: version
+        shell: bash
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="1.0.0-${SHORT_SHA}"
+          fi
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+
+          echo "Generated version: ${VERSION}"
+
+
+  # ==========================================================
+  # Backend linting and validation
+  # ==========================================================
+  backend-lint:
+    name: Backend Lint
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ruff
+
+      - name: Run Ruff checks
+        run: |
+          ruff check app tests --output-format=github
+
+      - name: Check Python formatting
+        run: |
+          ruff format --check app tests
+
+      - name: Compile Python files
+        run: |
+          python -m compileall app
+
+      - name: Validate application import
+        env:
+          APP_ENV: test
+          DATABASE_URL: sqlite:///./ci_test.db
+          SECRET_KEY: ci-only-secret-key
+          JWT_SECRET_KEY: ci-only-jwt-secret
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          python -c "from app.main import app; print('FastAPI application loaded:', app.title)"
+
+
+  # ==========================================================
+  # Frontend linting and TypeScript validation
+  # ==========================================================
+  frontend-lint:
+    name: Frontend Lint and Build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run TypeScript and production build
+        env:
+          VITE_API_URL: /api
+        run: npm run build
+
+      - name: Upload frontend build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist-${{ github.sha }}
+          path: frontend/dist
+          retention-days: 7
+          if-no-files-found: error
+
+
+  # ==========================================================
+  # Backend unit tests
+  # ==========================================================
+  backend-unit-tests:
+    name: Backend Unit Tests
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov httpx
+
+      - name: Run unit tests
+        env:
+          APP_ENV: test
+          DATABASE_URL: sqlite:///./unit_test.db
+          SECRET_KEY: unit-test-secret-key
+          JWT_SECRET_KEY: unit-test-jwt-secret
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          if [ -d "tests/unit" ] && find tests/unit -name "test_*.py" | grep -q .; then
+            pytest tests/unit \
+              --cov=app \
+              --cov-report=term-missing \
+              --cov-report=xml:coverage.xml \
+              --junitxml=unit-test-results.xml
+          else
+            echo "No backend unit tests found yet."
+            pytest tests \
+              --ignore=tests/integration \
+              --cov=app \
+              --cov-report=term-missing \
+              --cov-report=xml:coverage.xml \
+              --junitxml=unit-test-results.xml \
+              || test $? -eq 5
+          fi
+
+      - name: Upload backend unit test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-unit-test-results-${{ github.sha }}
+          path: |
+            backend/coverage.xml
+            backend/unit-test-results.xml
+          retention-days: 14
+          if-no-files-found: ignore
+
+
+  # ==========================================================
+  # Integration tests with PostgreSQL and Redis
+  # ==========================================================
+  backend-integration-tests:
+    name: Backend Integration Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+
+        env:
+          POSTGRES_DB: enterprise_ai_test
+          POSTGRES_USER: enterprise_test
+          POSTGRES_PASSWORD: enterprise_test_password
+
+        ports:
+          - 5432:5432
+
+        options: >-
+          --health-cmd="pg_isready -U enterprise_test -d enterprise_ai_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      redis:
+        image: redis:7-alpine
+
+        ports:
+          - 6379:6379
+
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov httpx
+
+      - name: Run database migrations
+        env:
+          APP_ENV: test
+          DATABASE_URL: postgresql+psycopg://enterprise_test:enterprise_test_password@localhost:5432/enterprise_ai_test
+          SECRET_KEY: integration-test-secret-key
+          JWT_SECRET_KEY: integration-test-jwt-secret
+          REDIS_URL: redis://localhost:6379/0
+          CELERY_BROKER_URL: redis://localhost:6379/1
+          CELERY_RESULT_BACKEND: redis://localhost:6379/2
+        run: |
+          if [ -f "alembic.ini" ]; then
+            alembic upgrade head
+          else
+            echo "Alembic configuration not found. Skipping migration command."
+          fi
+
+      - name: Run integration tests
+        env:
+          APP_ENV: test
+          DATABASE_URL: postgresql+psycopg://enterprise_test:enterprise_test_password@localhost:5432/enterprise_ai_test
+          SECRET_KEY: integration-test-secret-key
+          JWT_SECRET_KEY: integration-test-jwt-secret
+          REDIS_URL: redis://localhost:6379/0
+          CELERY_BROKER_URL: redis://localhost:6379/1
+          CELERY_RESULT_BACKEND: redis://localhost:6379/2
+        run: |
+          if [ -d "tests/integration" ] && find tests/integration -name "test_*.py" | grep -q .; then
+            pytest tests/integration \
+              --junitxml=integration-test-results.xml
+          else
+            echo "No integration tests found yet."
+          fi
+
+      - name: Upload integration test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-integration-results-${{ github.sha }}
+          path: backend/integration-test-results.xml
+          retention-days: 14
+          if-no-files-found: ignore
+
+
+  # ==========================================================
+  # Dependency and source-code security scanning
+  # ==========================================================
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Trivy repository scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+
+      - name: Upload Trivy scan to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: Run Trivy blocking vulnerability check
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Set up Python for dependency audit
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Audit Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pip-audit
+          pip-audit -r backend/requirements.txt
+
+      - name: Set up Node.js for npm audit
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Audit frontend dependencies
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npm audit --audit-level=critical
+
+
+  # ==========================================================
+  # Build backend Docker image
+  # ==========================================================
+  backend-docker:
+    name: Build Backend Image
+    runs-on: ubuntu-latest
+
+    needs:
+      - version
+      - backend-lint
+      - backend-unit-tests
+      - backend-integration-tests
+      - security-scan
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate backend image metadata
+        id: backend-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}
+
+          tags: |
+            type=raw,value=${{ needs.version.outputs.version }}
+            type=raw,value=${{ needs.version.outputs.short_sha }}
+            type=raw,value=develop,enable=${{ github.ref == 'refs/heads/develop' }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+          labels: |
+            org.opencontainers.image.title=Enterprise AI Workspace Backend
+            org.opencontainers.image.version=${{ needs.version.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Build and optionally push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.backend
+
+          push: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') }}
+
+          tags: ${{ steps.backend-meta.outputs.tags }}
+          labels: ${{ steps.backend-meta.outputs.labels }}
+
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+          platforms: linux/amd64
+
+      - name: Create backend build information
+        run: |
+          mkdir -p build-artifacts
+
+          cat > build-artifacts/backend-build.txt <<EOF
+          Application: Enterprise AI Workspace Backend
+          Version: ${{ needs.version.outputs.version }}
+          Commit: ${{ github.sha }}
+          Branch: ${{ github.ref_name }}
+          Image: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}
+          Build date: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          EOF
+
+      - name: Upload backend build information
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-build-${{ needs.version.outputs.version }}
+          path: build-artifacts/backend-build.txt
+          retention-days: 30
+
+
+  # ==========================================================
+  # Build frontend Docker image
+  # ==========================================================
+  frontend-docker:
+    name: Build Frontend Image
+    runs-on: ubuntu-latest
+
+    needs:
+      - version
+      - frontend-lint
+      - security-scan
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: |
+  github.event_name == 'push' &&
+  (
+    github.ref == 'refs/heads/main' ||
+    github.ref == 'refs/heads/develop' ||
+    startsWith(github.ref, 'refs/tags/v')
+  )
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate frontend image metadata
+        id: frontend-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}
+
+          tags: |
+            type=raw,value=${{ needs.version.outputs.version }}
+            type=raw,value=${{ needs.version.outputs.short_sha }}
+            type=raw,value=develop,enable=${{ github.ref == 'refs/heads/develop' }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+          labels: |
+            org.opencontainers.image.title=Enterprise AI Workspace Frontend
+            org.opencontainers.image.version=${{ needs.version.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Build and optionally push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.frontend
+
+          push: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/tags/v')) }}
+
+          tags: ${{ steps.frontend-meta.outputs.tags }}
+          labels: ${{ steps.frontend-meta.outputs.labels }}
+
+          build-args: |
+            VITE_API_URL=/api
+
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+          platforms: linux/amd64
+
+      - name: Create frontend build information
+        run: |
+          mkdir -p build-artifacts
+
+          cat > build-artifacts/frontend-build.txt <<EOF
+          Application: Enterprise AI Workspace Frontend
+          Version: ${{ needs.version.outputs.version }}
+          Commit: ${{ github.sha }}
+          Branch: ${{ github.ref_name }}
+          Image: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}
+          Build date: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          EOF
+
+      - name: Upload frontend build information
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build-${{ needs.version.outputs.version }}
+          path: build-artifacts/frontend-build.txt
+          retention-days: 30
+
+
+  # ==========================================================
+  # CI completion report
+  # ==========================================================
+  ci-summary:
+    name: CI Summary
+    runs-on: ubuntu-latest
+
+    if: always()
+
+    needs:
+      - version
+      - backend-lint
+      - frontend-lint
+      - backend-unit-tests
+      - backend-integration-tests
+      - security-scan
+      - backend-docker
+      - frontend-docker
+
+    steps:
+      - name: Add CI summary
+        run: |
+          {
+            echo "# Enterprise AI Workspace CI"
+            echo ""
+            echo "| Item | Value |"
+            echo "|---|---|"
+            echo "| Version | \`${{ needs.version.outputs.version }}\` |"
+            echo "| Commit | \`${{ github.sha }}\` |"
+            echo "| Branch | \`${{ github.ref_name }}\` |"
+            echo "| Backend lint | ${{ needs.backend-lint.result }} |"
+            echo "| Frontend lint | ${{ needs.frontend-lint.result }} |"
+            echo "| Unit tests | ${{ needs.backend-unit-tests.result }} |"
+            echo "| Integration tests | ${{ needs.backend-integration-tests.result }} |"
+            echo "| Security scan | ${{ needs.security-scan.result }} |"
+            echo "| Backend image | ${{ needs.backend-docker.result }} |"
+            echo "| Frontend image | ${{ needs.frontend-docker.result }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail when required CI job failed
+        shell: bash
+        run: |
+          RESULTS=(
+            "${{ needs.backend-lint.result }}"
+            "${{ needs.frontend-lint.result }}"
+            "${{ needs.backend-unit-tests.result }}"
+            "${{ needs.backend-integration-tests.result }}"
+            "${{ needs.security-scan.result }}"
+            "${{ needs.backend-docker.result }}"
+            "${{ needs.frontend-docker.result }}"
+          )
+
+          for RESULT in "${RESULTS[@]}"; do
+            if [[ "$RESULT" == "failure" || "$RESULT" == "cancelled" ]]; then
+              echo "One or more required CI jobs failed."
+              exit 1
+            fi
+          done
+
+          echo "All required CI jobs completed successfully."

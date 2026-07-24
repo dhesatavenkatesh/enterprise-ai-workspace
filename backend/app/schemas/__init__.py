@@ -11,9 +11,7 @@ from app.schemas.document_chunk import (
     DocumentChunkCreate,
     DocumentChunkListResponse,
     DocumentChunkResponse,
-    
 )
-
 
 __all__ = [
     "DocumentCreate",

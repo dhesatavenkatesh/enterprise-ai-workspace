@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.approvals.schemas import (
     ApprovalCreate,
@@ -12,7 +12,7 @@ from app.approvals.store import ApprovalStore, approval_store
 
 
 def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class ApprovalService:
@@ -68,9 +68,7 @@ class ApprovalService:
     ) -> ApprovalRequest:
         item = self.store.get(approval_id)
         if item.status != ApprovalStatus.PENDING:
-            raise ValueError(
-                f"Approval request is already '{item.status.value}'."
-            )
+            raise ValueError(f"Approval request is already '{item.status.value}'.")
         item.status = status
         item.decided_by = decided_by
         item.decision_comment = decision.comment

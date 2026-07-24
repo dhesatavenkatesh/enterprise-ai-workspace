@@ -95,9 +95,11 @@ class DocumentResponse(BaseModel):
     updated_at: datetime
     deleted_at: datetime | None
 
+
 class DocumentUploadResponse(BaseModel):
     message: str
     document: DocumentResponse
+
 
 class DocumentListResponse(BaseModel):
     items: list[DocumentResponse]

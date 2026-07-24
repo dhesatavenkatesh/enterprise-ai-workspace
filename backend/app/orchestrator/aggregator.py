@@ -9,7 +9,9 @@ class ResultAggregator:
         successful = [result for result in results if result.status == AgentStatus.SUCCESS]
         if not successful:
             errors = [result.error for result in results if result.error]
-            return "Agent execution failed. " + ("; ".join(errors) if errors else "No response was produced.")
+            return "Agent execution failed. " + (
+                "; ".join(errors) if errors else "No response was produced."
+            )
 
         if len(successful) == 1:
             return successful[0].content

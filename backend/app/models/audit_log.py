@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
@@ -53,16 +53,10 @@ class AuditLog(Base):
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
         index=True,
     )
 
     def __repr__(self) -> str:
-        return (
-            f"<AuditLog("
-            f"id={self.id}, "
-            f"action='{self.action}', "
-            f"resource='{self.resource}'"
-            f")>"
-        )
+        return f"<AuditLog(id={self.id}, action='{self.action}', resource='{self.resource}')>"

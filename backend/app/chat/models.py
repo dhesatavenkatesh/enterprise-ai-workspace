@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import enum
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
+
 from sqlalchemy import (
     Boolean,
     Column,
@@ -25,22 +26,22 @@ if TYPE_CHECKING:
 
 def utc_now() -> datetime:
     """Return current timezone-aware UTC datetime."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
-class MessageRole(str, enum.Enum):
+class MessageRole(StrEnum):
     USER = "user"
     ASSISTANT = "assistant"
     SYSTEM = "system"
 
 
-class LLMProvider(str, enum.Enum):
+class LLMProvider(StrEnum):
     GROQ = "groq"
     OPENAI = "openai"
     OLLAMA = "ollama"
 
 
-class PromptStatus(str, enum.Enum):
+class PromptStatus(StrEnum):
     DRAFT = "draft"
     ACTIVE = "active"
     ARCHIVED = "archived"
@@ -108,12 +109,12 @@ class Conversation(Base):
         onupdate=utc_now,
     )
 
-    user: Mapped["User"] = relationship(
+    user: Mapped[User] = relationship(
         "User",
         back_populates="conversations",
     )
 
-    messages: Mapped[list["Message"]] = relationship(
+    messages: Mapped[list[Message]] = relationship(
         "Message",
         back_populates="conversation",
         cascade="all, delete-orphan",
@@ -122,13 +123,7 @@ class Conversation(Base):
     )
 
     def __repr__(self) -> str:
-        return (
-            f"<Conversation("
-            f"id={self.id}, "
-            f"user_id={self.user_id}, "
-            f"title={self.title!r}"
-            f")>"
-        )
+        return f"<Conversation(id={self.id}, user_id={self.user_id}, title={self.title!r})>"
 
 
 class Message(Base):
@@ -154,9 +149,7 @@ class Message(Base):
         Enum(
             MessageRole,
             name="message_role",
-            values_callable=lambda enum_class: [
-                item.value for item in enum_class
-            ],
+            values_callable=lambda enum_class: [item.value for item in enum_class],
         ),
         nullable=False,
     )
@@ -205,7 +198,7 @@ class Message(Base):
         default=utc_now,
     )
 
-    conversation: Mapped["Conversation"] = relationship(
+    conversation: Mapped[Conversation] = relationship(
         "Conversation",
         back_populates="messages",
     )
@@ -264,9 +257,7 @@ class PromptTemplate(Base):
         Enum(
             PromptStatus,
             name="prompt_status",
-            values_callable=lambda enum_class: [
-                item.value for item in enum_class
-            ],
+            values_callable=lambda enum_class: [item.value for item in enum_class],
         ),
         nullable=False,
         default=PromptStatus.ACTIVE,
@@ -297,16 +288,10 @@ class PromptTemplate(Base):
         onupdate=utc_now,
     )
 
-    user: Mapped["User | None"] = relationship(
+    user: Mapped[User | None] = relationship(
         "User",
         back_populates="prompt_templates",
     )
 
     def __repr__(self) -> str:
-        return (
-            f"<PromptTemplate("
-            f"id={self.id}, "
-            f"name={self.name!r}, "
-            f"user_id={self.user_id}"
-            f")>"
-        )
+        return f"<PromptTemplate(id={self.id}, name={self.name!r}, user_id={self.user_id})>"

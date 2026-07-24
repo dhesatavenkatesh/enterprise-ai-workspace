@@ -18,6 +18,7 @@ from sqlalchemy.orm import (
 )
 
 from app.database.base import Base
+
 if TYPE_CHECKING:
     from app.chat.models import Conversation, PromptTemplate
     from app.models.role import Role
@@ -97,9 +98,7 @@ class User(Base):
         nullable=True,
     )
 
-    password_changed_at: Mapped[
-        datetime | None
-    ] = mapped_column(
+    password_changed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
     )
@@ -122,29 +121,25 @@ class User(Base):
         nullable=False,
     )
 
-    role: Mapped["Role"] = relationship(
+    role: Mapped[Role] = relationship(
         "Role",
         back_populates="users",
     )
 
-    sessions: Mapped[list["UserSession"]] = relationship(
+    sessions: Mapped[list[UserSession]] = relationship(
         "UserSession",
         back_populates="user",
         cascade="all, delete-orphan",
     )
 
-    conversations: Mapped[
-        list["Conversation"]
-    ] = relationship(
+    conversations: Mapped[list[Conversation]] = relationship(
         "Conversation",
         back_populates="user",
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
 
-    prompt_templates: Mapped[
-        list["PromptTemplate"]
-    ] = relationship(
+    prompt_templates: Mapped[list[PromptTemplate]] = relationship(
         "PromptTemplate",
         back_populates="user",
         cascade="all, delete-orphan",

@@ -1,11 +1,10 @@
 from fastapi import APIRouter, Depends
 
-from app.api.dependencies.rbac import require_roles
-from app.models.user import User
 from app.api.dependencies.rbac import (
     require_permission,
     require_roles,
 )
+from app.models.user import User
 
 router = APIRouter(
     prefix="/api",
@@ -15,9 +14,7 @@ router = APIRouter(
 
 @router.get("/admin/test")
 def admin_test(
-    current_user: User = Depends(
-        require_roles("Admin")
-    ),
+    current_user: User = Depends(require_roles("Admin")),
 ) -> dict:
     return {
         "message": "Admin access granted",
@@ -28,9 +25,7 @@ def admin_test(
 
 @router.get("/hr/test")
 def hr_test(
-    current_user: User = Depends(
-        require_roles("Admin", "HR")
-    ),
+    current_user: User = Depends(require_roles("Admin", "HR")),
 ) -> dict:
     return {
         "message": "HR access granted",
@@ -60,9 +55,7 @@ def employee_test(
 
 @router.get("/manager/test")
 def manager_test(
-    current_user: User = Depends(
-        require_roles("Admin", "Manager")
-    ),
+    current_user: User = Depends(require_roles("Admin", "Manager")),
 ) -> dict:
     return {
         "message": "Manager access granted",
@@ -73,20 +66,18 @@ def manager_test(
 
 @router.get("/support/test")
 def support_test(
-    current_user: User = Depends(
-        require_roles("Admin", "Support")
-    ),
+    current_user: User = Depends(require_roles("Admin", "Support")),
 ) -> dict:
     return {
         "message": "Support access granted",
         "user": current_user.email,
         "role": current_user.role.name,
     }
+
+
 @router.get("/chat/test")
 def chat_test(
-    current_user: User = Depends(
-        require_permission("chat.access")
-    ),
+    current_user: User = Depends(require_permission("chat.access")),
 ) -> dict:
     return {
         "message": "AI Chat access granted",

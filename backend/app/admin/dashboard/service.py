@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -19,20 +19,11 @@ from app.models.user import User
 def get_user_statistics(
     db: Session,
 ) -> AdminDashboardUserStats:
-    total_users = (
-        db.scalar(
-            select(
-                func.count(User.id)
-            )
-        )
-        or 0
-    )
+    total_users = db.scalar(select(func.count(User.id))) or 0
 
     active_users = (
         db.scalar(
-            select(
-                func.count(User.id)
-            ).where(
+            select(func.count(User.id)).where(
                 User.is_active.is_(True),
                 User.is_deleted.is_(False),
             )
@@ -42,9 +33,7 @@ def get_user_statistics(
 
     inactive_users = (
         db.scalar(
-            select(
-                func.count(User.id)
-            ).where(
+            select(func.count(User.id)).where(
                 User.is_active.is_(False),
                 User.is_deleted.is_(False),
             )
@@ -54,9 +43,7 @@ def get_user_statistics(
 
     locked_users = (
         db.scalar(
-            select(
-                func.count(User.id)
-            ).where(
+            select(func.count(User.id)).where(
                 User.is_locked.is_(True),
                 User.is_deleted.is_(False),
             )
@@ -64,16 +51,7 @@ def get_user_statistics(
         or 0
     )
 
-    deleted_users = (
-        db.scalar(
-            select(
-                func.count(User.id)
-            ).where(
-                User.is_deleted.is_(True)
-            )
-        )
-        or 0
-    )
+    deleted_users = db.scalar(select(func.count(User.id)).where(User.is_deleted.is_(True))) or 0
 
     return AdminDashboardUserStats(
         total=total_users,
@@ -87,23 +65,9 @@ def get_user_statistics(
 def get_role_statistics(
     db: Session,
 ) -> AdminDashboardRoleStats:
-    total_roles = (
-        db.scalar(
-            select(
-                func.count(Role.id)
-            )
-        )
-        or 0
-    )
+    total_roles = db.scalar(select(func.count(Role.id))) or 0
 
-    total_permissions = (
-        db.scalar(
-            select(
-                func.count(Permission.id)
-            )
-        )
-        or 0
-    )
+    total_permissions = db.scalar(select(func.count(Permission.id))) or 0
 
     return AdminDashboardRoleStats(
         total_roles=total_roles,
@@ -114,30 +78,12 @@ def get_role_statistics(
 def get_audit_statistics(
     db: Session,
 ) -> AdminDashboardAuditStats:
-    total_logs = (
-        db.scalar(
-            select(
-                func.count(AuditLog.id)
-            )
-        )
-        or 0
-    )
+    total_logs = db.scalar(select(func.count(AuditLog.id))) or 0
 
-    today = datetime.now(
-        timezone.utc
-    ).date()
+    today = datetime.now(UTC).date()
 
     logs_today = (
-        db.scalar(
-            select(
-                func.count(AuditLog.id)
-            ).where(
-                func.date(
-                    AuditLog.created_at
-                )
-                == today
-            )
-        )
+        db.scalar(select(func.count(AuditLog.id)).where(func.date(AuditLog.created_at) == today))
         or 0
     )
 
@@ -191,7 +137,5 @@ def get_dashboard_summary(
             db=db,
             limit=10,
         ),
-        generated_at=datetime.now(
-            timezone.utc
-        ),
+        generated_at=datetime.now(UTC),
     )

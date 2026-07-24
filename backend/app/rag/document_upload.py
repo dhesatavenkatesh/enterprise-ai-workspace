@@ -4,9 +4,8 @@ import hashlib
 import logging
 import os
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException, UploadFile, status
@@ -15,7 +14,6 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models.document import Document
-
 
 logger = logging.getLogger(__name__)
 
@@ -87,12 +85,13 @@ DOCUMENT_TYPE_MAPPING = {
 # General helpers
 # =============================================================================
 
+
 def _utc_now() -> datetime:
     """
     Return the current UTC datetime.
     """
 
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _sanitize_filename(filename: str) -> str:
@@ -142,15 +141,12 @@ def _validate_file_extension(filename: str) -> str:
         )
 
     if extension not in ALLOWED_EXTENSIONS:
-        allowed_extensions = ", ".join(
-            sorted(ALLOWED_EXTENSIONS)
-        )
+        allowed_extensions = ", ".join(sorted(ALLOWED_EXTENSIONS))
 
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=(
-                f"Unsupported file type '{extension}'. "
-                f"Allowed file types: {allowed_extensions}."
+                f"Unsupported file type '{extension}'. Allowed file types: {allowed_extensions}."
             ),
         )
 
@@ -159,7 +155,7 @@ def _validate_file_extension(filename: str) -> str:
 
 def _get_document_type(
     extension: str,
-    requested_document_type: Optional[str],
+    requested_document_type: str | None,
 ) -> str:
     """
     Resolve a valid document type.
@@ -208,16 +204,11 @@ def _get_document_type(
     )
 
     if cleaned_type not in ALLOWED_DOCUMENT_TYPES:
-        allowed_types = ", ".join(
-            sorted(ALLOWED_DOCUMENT_TYPES)
-        )
+        allowed_types = ", ".join(sorted(ALLOWED_DOCUMENT_TYPES))
 
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                f"Invalid document_type '{cleaned_type}'. "
-                f"Allowed values: {allowed_types}."
-            ),
+            detail=(f"Invalid document_type '{cleaned_type}'. Allowed values: {allowed_types}."),
         )
 
     return cleaned_type
@@ -228,10 +219,7 @@ def _get_document_columns() -> set[str]:
     Return all actual columns declared in the Document SQLAlchemy model.
     """
 
-    return {
-        column.name
-        for column in Document.__table__.columns
-    }
+    return {column.name for column in Document.__table__.columns}
 
 
 def _filter_document_values(values: dict) -> dict:
@@ -241,16 +229,13 @@ def _filter_document_values(values: dict) -> dict:
 
     document_columns = _get_document_columns()
 
-    return {
-        key: value
-        for key, value in values.items()
-        if key in document_columns
-    }
+    return {key: value for key, value in values.items() if key in document_columns}
 
 
 # =============================================================================
 # File storage
 # =============================================================================
+
 
 def _save_uploaded_file(
     upload_file: UploadFile,
@@ -275,9 +260,7 @@ def _save_uploaded_file(
 
         with saved_path.open("wb") as destination:
             while True:
-                chunk = upload_file.file.read(
-                    1024 * 1024
-                )
+                chunk = upload_file.file.read(1024 * 1024)
 
                 if not chunk:
                     break
@@ -309,19 +292,13 @@ def _save_uploaded_file(
         )
 
     except HTTPException:
-        saved_path.unlink(
-            missing_ok=True
-        )
+        saved_path.unlink(missing_ok=True)
         raise
 
     except OSError as exc:
-        saved_path.unlink(
-            missing_ok=True
-        )
+        saved_path.unlink(missing_ok=True)
 
-        logger.exception(
-            "Failed to save uploaded document."
-        )
+        logger.exception("Failed to save uploaded document.")
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -339,37 +316,32 @@ def _save_uploaded_file(
 # Create document
 # =============================================================================
 
+
 def create_document(
     db: Session,
     upload_file: UploadFile,
     user_id: int,
-    title: Optional[str] = None,
+    title: str | None = None,
     department: str = "General",
-    document_type: Optional[str] = None,
-    description: Optional[str] = None,
+    document_type: str | None = None,
+    description: str | None = None,
 ) -> Document:
     """
     Save the uploaded file and create a Document database record.
     """
 
-    original_file_name = _sanitize_filename(
-        upload_file.filename or "document"
-    )
+    original_file_name = _sanitize_filename(upload_file.filename or "document")
 
-    extension = _validate_file_extension(
-        original_file_name
-    )
+    extension = _validate_file_extension(original_file_name)
 
     resolved_document_type = _get_document_type(
         extension=extension,
         requested_document_type=document_type,
     )
 
-    stored_file_name = (
-        f"{uuid4().hex}_{original_file_name}"
-    )
+    stored_file_name = f"{uuid4().hex}_{original_file_name}"
 
-    saved_file_path: Optional[Path] = None
+    saved_file_path: Path | None = None
 
     try:
         (
@@ -381,23 +353,13 @@ def create_document(
             stored_file_name=stored_file_name,
         )
 
-        resolved_title = (
-            title.strip()
-            if title and title.strip()
-            else Path(original_file_name).stem
-        )
+        resolved_title = title.strip() if title and title.strip() else Path(original_file_name).stem
 
-        resolved_department = (
-            department.strip()
-            if department and department.strip()
-            else "General"
-        )
+        resolved_department = department.strip() if department and department.strip() else "General"
 
         resolved_description = (
             description.strip()
-            if description
-            and description.strip()
-            and description.strip().lower() != "string"
+            if description and description.strip() and description.strip().lower() != "string"
             else None
         )
 
@@ -426,13 +388,9 @@ def create_document(
             "deleted_at": None,
         }
 
-        filtered_values = _filter_document_values(
-            document_values
-        )
+        filtered_values = _filter_document_values(document_values)
 
-        document = Document(
-            **filtered_values
-        )
+        document = Document(**filtered_values)
 
         db.add(document)
         db.commit()
@@ -450,9 +408,7 @@ def create_document(
         db.rollback()
 
         if saved_file_path is not None:
-            saved_file_path.unlink(
-                missing_ok=True
-            )
+            saved_file_path.unlink(missing_ok=True)
 
         raise
 
@@ -460,9 +416,7 @@ def create_document(
         db.rollback()
 
         if saved_file_path is not None:
-            saved_file_path.unlink(
-                missing_ok=True
-            )
+            saved_file_path.unlink(missing_ok=True)
 
         database_error = str(
             getattr(
@@ -489,46 +443,33 @@ def create_document(
         db.rollback()
 
         if saved_file_path is not None:
-            saved_file_path.unlink(
-                missing_ok=True
-            )
+            saved_file_path.unlink(missing_ok=True)
 
-        logger.exception(
-            "SQLAlchemy document upload error."
-        )
+        logger.exception("SQLAlchemy document upload error.")
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=(
-                "Unable to create document record: "
-                f"{str(exc)}"
-            ),
+            detail=(f"Unable to create document record: {str(exc)}"),
         ) from exc
 
     except Exception as exc:
         db.rollback()
 
         if saved_file_path is not None:
-            saved_file_path.unlink(
-                missing_ok=True
-            )
+            saved_file_path.unlink(missing_ok=True)
 
-        logger.exception(
-            "Unexpected document upload error."
-        )
+        logger.exception("Unexpected document upload error.")
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=(
-                "Unable to upload document: "
-                f"{str(exc)}"
-            ),
+            detail=(f"Unable to upload document: {str(exc)}"),
         ) from exc
 
 
 # =============================================================================
 # Get document by ID
 # =============================================================================
+
 
 def get_document_by_id(
     db: Session,
@@ -545,9 +486,7 @@ def get_document_by_id(
     )
 
     if hasattr(Document, "is_deleted"):
-        query = query.filter(
-            Document.is_deleted.is_(False)
-        )
+        query = query.filter(Document.is_deleted.is_(False))
 
     document = query.first()
 
@@ -564,14 +503,15 @@ def get_document_by_id(
 # List documents
 # =============================================================================
 
+
 def list_documents(
     db: Session,
     user_id: int,
     page: int = 1,
     page_size: int = 20,
-    search: Optional[str] = None,
-    department: Optional[str] = None,
-    document_status: Optional[str] = None,
+    search: str | None = None,
+    department: str | None = None,
+    document_status: str | None = None,
 ) -> tuple[list[Document], int]:
     """
     Return the user's documents and the total count.
@@ -586,14 +526,10 @@ def list_documents(
     if page_size > 100:
         page_size = 100
 
-    query = db.query(Document).filter(
-        Document.user_id == user_id
-    )
+    query = db.query(Document).filter(Document.user_id == user_id)
 
     if hasattr(Document, "is_deleted"):
-        query = query.filter(
-            Document.is_deleted.is_(False)
-        )
+        query = query.filter(Document.is_deleted.is_(False))
 
     if search and search.strip():
         search_value = f"%{search.strip()}%"
@@ -607,35 +543,18 @@ def list_documents(
         )
 
     if department and department.strip():
-        query = query.filter(
-            Document.department.ilike(
-                department.strip()
-            )
-        )
+        query = query.filter(Document.department.ilike(department.strip()))
 
     if document_status and document_status.strip():
-        query = query.filter(
-            Document.status.ilike(
-                document_status.strip()
-            )
-        )
+        query = query.filter(Document.status.ilike(document_status.strip()))
 
     total = query.count()
 
-    query = query.order_by(
-        Document.created_at.desc()
-    )
+    query = query.order_by(Document.created_at.desc())
 
-    offset = (
-        page - 1
-    ) * page_size
+    offset = (page - 1) * page_size
 
-    documents = (
-        query
-        .offset(offset)
-        .limit(page_size)
-        .all()
-    )
+    documents = query.offset(offset).limit(page_size).all()
 
     return documents, total
 
@@ -643,6 +562,7 @@ def list_documents(
 # =============================================================================
 # Soft delete document
 # =============================================================================
+
 
 def soft_delete_document(
     db: Session,
@@ -681,9 +601,7 @@ def soft_delete_document(
     except SQLAlchemyError as exc:
         db.rollback()
 
-        logger.exception(
-            "Failed to soft delete document."
-        )
+        logger.exception("Failed to soft delete document.")
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -694,6 +612,7 @@ def soft_delete_document(
 # =============================================================================
 # Optional physical file removal
 # =============================================================================
+
 
 def remove_document_file(
     document: Document,

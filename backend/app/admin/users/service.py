@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -28,11 +28,7 @@ def get_role_or_404(
     db: Session,
     role_id: int,
 ) -> Role:
-    role = db.scalar(
-        select(Role).where(
-            Role.id == role_id
-        )
-    )
+    role = db.scalar(select(Role).where(Role.id == role_id))
 
     if role is None:
         raise HTTPException(
@@ -48,16 +44,10 @@ def get_user_or_404(
     user_id: int,
     include_deleted: bool = False,
 ) -> User:
-    statement = (
-        select(User)
-        .options(joinedload(User.role))
-        .where(User.id == user_id)
-    )
+    statement = select(User).options(joinedload(User.role)).where(User.id == user_id)
 
     if not include_deleted:
-        statement = statement.where(
-            User.is_deleted.is_(False)
-        )
+        statement = statement.where(User.is_deleted.is_(False))
 
     user = db.scalar(statement)
 
@@ -74,12 +64,7 @@ def get_user_by_email(
     db: Session,
     email: str,
 ) -> User | None:
-    return db.scalar(
-        select(User).where(
-            func.lower(User.email)
-            == email.strip().lower()
-        )
-    )
+    return db.scalar(select(User).where(func.lower(User.email) == email.strip().lower()))
 
 
 def build_user_response(
@@ -138,11 +123,7 @@ def create_user(
         email=email,
         password_hash=hash_password(request.password),
         role_id=role.id,
-        status=(
-            "active"
-            if request.is_active
-            else "inactive"
-        ),
+        status=("active" if request.is_active else "inactive"),
         is_active=request.is_active,
         is_locked=False,
         is_deleted=False,
@@ -202,9 +183,7 @@ def list_users(
     filters = []
 
     if not include_deleted:
-        filters.append(
-            User.is_deleted.is_(False)
-        )
+        filters.append(User.is_deleted.is_(False))
 
     if search and search.strip():
         search_value = f"%{search.strip()}%"
@@ -217,49 +196,31 @@ def list_users(
         )
 
     if role_id is not None:
-        filters.append(
-            User.role_id == role_id
-        )
+        filters.append(User.role_id == role_id)
 
     if user_status is not None:
-        filters.append(
-            User.status == user_status.strip().lower()
-        )
+        filters.append(User.status == user_status.strip().lower())
 
     if is_active is not None:
-        filters.append(
-            User.is_active.is_(is_active)
-        )
+        filters.append(User.is_active.is_(is_active))
 
     if is_locked is not None:
-        filters.append(
-            User.is_locked.is_(is_locked)
-        )
+        filters.append(User.is_locked.is_(is_locked))
 
-    total_statement = select(
-        func.count(User.id)
-    )
+    total_statement = select(func.count(User.id))
 
     if filters:
-        total_statement = total_statement.where(
-            *filters
-        )
+        total_statement = total_statement.where(*filters)
 
     total = db.scalar(total_statement) or 0
 
-    users_statement = (
-        select(User)
-        .options(joinedload(User.role))
-    )
+    users_statement = select(User).options(joinedload(User.role))
 
     if filters:
-        users_statement = users_statement.where(
-            *filters
-        )
+        users_statement = users_statement.where(*filters)
 
     users_statement = (
-        users_statement
-        .order_by(
+        users_statement.order_by(
             User.created_at.desc(),
             User.id.desc(),
         )
@@ -267,9 +228,7 @@ def list_users(
         .limit(page_size)
     )
 
-    users = db.scalars(
-        users_statement
-    ).unique().all()
+    users = db.scalars(users_statement).unique().all()
 
     items = [
         AdminUserListItem(
@@ -277,11 +236,7 @@ def list_users(
             name=user.name,
             email=user.email,
             role_id=user.role_id,
-            role_name=(
-                user.role.name
-                if user.role is not None
-                else None
-            ),
+            role_name=(user.role.name if user.role is not None else None),
             status=user.status,
             is_active=user.is_active,
             is_locked=user.is_locked,
@@ -297,11 +252,7 @@ def list_users(
         total=total,
         page=page,
         page_size=page_size,
-        total_pages=(
-            math.ceil(total / page_size)
-            if total > 0
-            else 0
-        ),
+        total_pages=(math.ceil(total / page_size) if total > 0 else 0),
     )
 
 
@@ -349,10 +300,7 @@ def update_user(
         email = str(data["email"]).strip().lower()
         existing = get_user_by_email(db, email)
 
-        if (
-            existing is not None
-            and existing.id != user.id
-        ):
+        if existing is not None and existing.id != user.id:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Another user already uses this email",
@@ -374,11 +322,7 @@ def update_user(
         if user.is_locked:
             user.status = "locked"
         else:
-            user.status = (
-                "active"
-                if user.is_active
-                else "inactive"
-            )
+            user.status = "active" if user.is_active else "inactive"
 
     try:
         db.flush()
@@ -437,17 +381,9 @@ def update_user_status(
     if user.is_locked:
         user.status = "locked"
     else:
-        user.status = (
-            "active"
-            if is_active
-            else "inactive"
-        )
+        user.status = "active" if is_active else "inactive"
 
-    action = (
-        "USER_ACTIVATED"
-        if is_active
-        else "USER_DEACTIVATED"
-    )
+    action = "USER_ACTIVATED" if is_active else "USER_DEACTIVATED"
 
     create_audit_log(
         db=db,
@@ -571,11 +507,7 @@ def unlock_user(
 
     user.is_locked = False
     user.failed_login_attempts = 0
-    user.status = (
-        "active"
-        if user.is_active
-        else "inactive"
-    )
+    user.status = "active" if user.is_active else "inactive"
 
     create_audit_log(
         db=db,
@@ -588,9 +520,7 @@ def unlock_user(
             "target_user_email": user.email,
             "previous_is_locked": previous_is_locked,
             "new_is_locked": False,
-            "previous_failed_login_attempts": (
-                previous_failed_attempts
-            ),
+            "previous_failed_login_attempts": (previous_failed_attempts),
             "new_failed_login_attempts": 0,
             "previous_status": previous_status,
             "new_status": user.status,
@@ -621,13 +551,9 @@ def reset_user_password(
         user_id=user_id,
     )
 
-    user.password_hash = hash_password(
-        request.new_password
-    )
+    user.password_hash = hash_password(request.new_password)
 
-    user.password_changed_at = datetime.now(
-        timezone.utc
-    )
+    user.password_changed_at = datetime.now(UTC)
 
     user.failed_login_attempts = 0
 
@@ -678,9 +604,7 @@ def soft_delete_user(
     user.is_active = False
     user.is_locked = True
     user.status = "deleted"
-    user.deleted_at = datetime.now(
-        timezone.utc
-    )
+    user.deleted_at = datetime.now(UTC)
 
     create_audit_log(
         db=db,

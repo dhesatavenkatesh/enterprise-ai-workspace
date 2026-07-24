@@ -15,7 +15,6 @@ from app.api.dependencies.auth import (
 )
 from app.models.user import User
 
-
 router = APIRouter(
     prefix="/api/analytics/agents",
     tags=["Agent Analytics"],
@@ -102,10 +101,7 @@ def get_agent_leaderboard(
     ),
 ) -> dict:
     return {
-        "leaderboard": (
-            agent_metrics_tracker
-            .get_agent_leaderboard()
-        ),
+        "leaderboard": (agent_metrics_tracker.get_agent_leaderboard()),
     }
 
 
@@ -119,9 +115,7 @@ def get_tool_usage(
     ),
 ) -> dict:
     return {
-        "tools": (
-            agent_metrics_tracker.get_tool_usage()
-        ),
+        "tools": (agent_metrics_tracker.get_tool_usage()),
     }
 
 
@@ -168,12 +162,10 @@ def get_agent_executions(
         get_current_user,
     ),
 ) -> dict:
-    executions = (
-        agent_metrics_tracker.list_executions(
-            agent_name=agent_name,
-            status=status,
-            limit=limit,
-        )
+    executions = agent_metrics_tracker.list_executions(
+        agent_name=agent_name,
+        status=status,
+        limit=limit,
     )
 
     return {
@@ -193,28 +185,20 @@ def create_agent_execution_metric(
         get_current_user,
     ),
 ) -> dict:
-    metric = (
-        agent_metrics_tracker.record_execution(
-            agent_name=payload.agent_name,
-            status=payload.status,
-            response_time_ms=(
-                payload.response_time_ms
-            ),
-            input_tokens=payload.input_tokens,
-            output_tokens=payload.output_tokens,
-            tool_names=payload.tool_names,
-            workflow_id=payload.workflow_id,
-            workflow_duration_ms=(
-                payload.workflow_duration_ms
-            ),
-            error_message=payload.error_message,
-        )
+    metric = agent_metrics_tracker.record_execution(
+        agent_name=payload.agent_name,
+        status=payload.status,
+        response_time_ms=(payload.response_time_ms),
+        input_tokens=payload.input_tokens,
+        output_tokens=payload.output_tokens,
+        tool_names=payload.tool_names,
+        workflow_id=payload.workflow_id,
+        workflow_duration_ms=(payload.workflow_duration_ms),
+        error_message=payload.error_message,
     )
 
     return {
-        "message": (
-            "Agent execution metric recorded"
-        ),
+        "message": ("Agent execution metric recorded"),
         "metric": {
             **metric.__dict__,
             "total_tokens": metric.total_tokens,

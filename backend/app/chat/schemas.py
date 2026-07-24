@@ -18,11 +18,14 @@ class ChatRequest(BaseModel):
     conversation_id: UUID | None = None
     prompt_template_id: UUID | None = None
 
-    provider: Literal[
-        "groq",
-        "openai",
-        "ollama",
-    ] | None = None
+    provider: (
+        Literal[
+            "groq",
+            "openai",
+            "ollama",
+        ]
+        | None
+    ) = None
 
     model_name: str | None = Field(
         default=None,
@@ -130,9 +133,7 @@ class ConversationSummaryResponse(BaseModel):
     updated_at: datetime
 
 
-class ConversationDetailResponse(
-    ConversationSummaryResponse
-):
+class ConversationDetailResponse(ConversationSummaryResponse):
     messages: list[MessageResponse]
 
 

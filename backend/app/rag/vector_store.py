@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 import chromadb
 from chromadb.api.models.Collection import Collection
@@ -12,7 +13,6 @@ from app.rag.embedding_service import (
     EmbeddingService,
     get_embedding_service,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -54,64 +54,44 @@ class VectorStore:
         embedding_service: EmbeddingService | None = None,
     ) -> None:
         if not collection_name.strip():
-            raise ValueError(
-                "collection_name cannot be empty."
-            )
+            raise ValueError("collection_name cannot be empty.")
 
         self.collection_name = collection_name.strip()
 
-        self.persist_directory = Path(
-            persist_directory
-        ).resolve()
+        self.persist_directory = Path(persist_directory).resolve()
 
         self.persist_directory.mkdir(
             parents=True,
             exist_ok=True,
         )
 
-        self.embedding_service = (
-            embedding_service or get_embedding_service()
-        )
+        self.embedding_service = embedding_service or get_embedding_service()
 
         try:
             self.client = chromadb.PersistentClient(
                 path=str(self.persist_directory),
             )
 
-            self.collection = (
-                self.client.get_or_create_collection(
-                    name=self.collection_name,
-                    metadata={
-                        "description": (
-                            "Enterprise AI Workspace "
-                            "knowledge-base vectors"
-                        ),
-                        "embedding_model": (
-                            self.embedding_service.model_name
-                        ),
-                        "embedding_dimension": (
-                            self.embedding_service.embedding_dimension
-                        ),
-                        "hnsw:space": "cosine",
-                    },
-                )
+            self.collection = self.client.get_or_create_collection(
+                name=self.collection_name,
+                metadata={
+                    "description": ("Enterprise AI Workspace knowledge-base vectors"),
+                    "embedding_model": (self.embedding_service.model_name),
+                    "embedding_dimension": (self.embedding_service.embedding_dimension),
+                    "hnsw:space": "cosine",
+                },
             )
 
             logger.info(
-                "ChromaDB collection ready: "
-                "collection=%s directory=%s",
+                "ChromaDB collection ready: collection=%s directory=%s",
                 self.collection_name,
                 self.persist_directory,
             )
 
         except Exception as exc:
-            logger.exception(
-                "Unable to initialize ChromaDB."
-            )
+            logger.exception("Unable to initialize ChromaDB.")
 
-            raise VectorStoreError(
-                f"Unable to initialize ChromaDB: {exc}"
-            ) from exc
+            raise VectorStoreError(f"Unable to initialize ChromaDB: {exc}") from exc
 
     def add_embedded_chunks(
         self,
@@ -130,29 +110,15 @@ class VectorStore:
         }
         """
 
-        validated_chunks = self._validate_embedded_chunks(
-            embedded_chunks
-        )
+        validated_chunks = self._validate_embedded_chunks(embedded_chunks)
 
-        ids = [
-            chunk["id"]
-            for chunk in validated_chunks
-        ]
+        ids = [chunk["id"] for chunk in validated_chunks]
 
-        documents = [
-            chunk["document"]
-            for chunk in validated_chunks
-        ]
+        documents = [chunk["document"] for chunk in validated_chunks]
 
-        embeddings = [
-            chunk["embedding"]
-            for chunk in validated_chunks
-        ]
+        embeddings = [chunk["embedding"] for chunk in validated_chunks]
 
-        metadatas = [
-            chunk["metadata"]
-            for chunk in validated_chunks
-        ]
+        metadatas = [chunk["metadata"] for chunk in validated_chunks]
 
         try:
             self.collection.upsert(
@@ -171,13 +137,9 @@ class VectorStore:
             return len(ids)
 
         except Exception as exc:
-            logger.exception(
-                "Unable to store document chunks."
-            )
+            logger.exception("Unable to store document chunks.")
 
-            raise VectorStoreError(
-                f"Unable to store document chunks: {exc}"
-            ) from exc
+            raise VectorStoreError(f"Unable to store document chunks: {exc}") from exc
 
     def add_document_chunks(
         self,
@@ -193,29 +155,19 @@ class VectorStore:
         """
 
         if not chunks:
-            raise EmptyVectorStoreInputError(
-                "At least one document chunk is required."
-            )
+            raise EmptyVectorStoreInputError("At least one document chunk is required.")
 
         try:
-            embedded_chunks = (
-                self.embedding_service.embed_chunks(chunks)
-            )
+            embedded_chunks = self.embedding_service.embed_chunks(chunks)
 
-            return self.add_embedded_chunks(
-                embedded_chunks
-            )
+            return self.add_embedded_chunks(embedded_chunks)
 
         except VectorStoreError:
             raise
         except Exception as exc:
-            logger.exception(
-                "Unable to embed and store chunks."
-            )
+            logger.exception("Unable to embed and store chunks.")
 
-            raise VectorStoreError(
-                f"Unable to embed and store chunks: {exc}"
-            ) from exc
+            raise VectorStoreError(f"Unable to embed and store chunks: {exc}") from exc
 
     def search(
         self,
@@ -238,21 +190,14 @@ class VectorStore:
         """
 
         if not isinstance(query, str) or not query.strip():
-            raise ValueError(
-                "Search query cannot be empty."
-            )
+            raise ValueError("Search query cannot be empty.")
 
         if top_k <= 0:
-            raise ValueError(
-                "top_k must be greater than zero."
-            )
+            raise ValueError("top_k must be greater than zero.")
 
         if minimum_similarity is not None:
             if not 0 <= minimum_similarity <= 1:
-                raise ValueError(
-                    "minimum_similarity must be "
-                    "between 0 and 1."
-                )
+                raise ValueError("minimum_similarity must be between 0 and 1.")
 
         where_filter = self._build_where_filter(
             document_id=document_id,
@@ -260,9 +205,7 @@ class VectorStore:
             document_type=document_type,
         )
 
-        query_embedding = (
-            self.embedding_service.embed_query(query)
-        )
+        query_embedding = self.embedding_service.embed_query(query)
 
         query_arguments: dict[str, Any] = {
             "query_embeddings": [query_embedding],
@@ -278,17 +221,11 @@ class VectorStore:
             query_arguments["where"] = where_filter
 
         try:
-            result = self.collection.query(
-                **query_arguments
-            )
+            result = self.collection.query(**query_arguments)
         except Exception as exc:
-            logger.exception(
-                "Vector similarity search failed."
-            )
+            logger.exception("Vector similarity search failed.")
 
-            raise VectorStoreError(
-                f"Vector similarity search failed: {exc}"
-            ) from exc
+            raise VectorStoreError(f"Vector similarity search failed: {exc}") from exc
 
         return self._format_query_results(
             result,
@@ -307,19 +244,13 @@ class VectorStore:
         Searches using an embedding supplied by the caller.
         """
 
-        validated_embedding = (
-            self._validate_embedding(embedding)
-        )
+        validated_embedding = self._validate_embedding(embedding)
 
         if top_k <= 0:
-            raise ValueError(
-                "top_k must be greater than zero."
-            )
+            raise ValueError("top_k must be greater than zero.")
 
         query_arguments: dict[str, Any] = {
-            "query_embeddings": [
-                validated_embedding
-            ],
+            "query_embeddings": [validated_embedding],
             "n_results": top_k,
             "include": [
                 "documents",
@@ -332,9 +263,7 @@ class VectorStore:
             query_arguments["where"] = where
 
         try:
-            result = self.collection.query(
-                **query_arguments
-            )
+            result = self.collection.query(**query_arguments)
 
             return self._format_query_results(
                 result,
@@ -342,13 +271,9 @@ class VectorStore:
             )
 
         except Exception as exc:
-            logger.exception(
-                "Embedding search failed."
-            )
+            logger.exception("Embedding search failed.")
 
-            raise VectorStoreError(
-                f"Embedding search failed: {exc}"
-            ) from exc
+            raise VectorStoreError(f"Embedding search failed: {exc}") from exc
 
     def get_document_chunks(
         self,
@@ -361,9 +286,7 @@ class VectorStore:
         """
 
         if not document_id.strip():
-            raise ValueError(
-                "document_id cannot be empty."
-            )
+            raise ValueError("document_id cannot be empty.")
 
         arguments: dict[str, Any] = {
             "where": {
@@ -378,16 +301,12 @@ class VectorStore:
 
         if limit is not None:
             if limit <= 0:
-                raise ValueError(
-                    "limit must be greater than zero."
-                )
+                raise ValueError("limit must be greater than zero.")
 
             arguments["limit"] = limit
 
         try:
-            result = self.collection.get(
-                **arguments
-            )
+            result = self.collection.get(**arguments)
 
             ids = result.get("ids", [])
             documents = result.get(
@@ -406,26 +325,14 @@ class VectorStore:
             chunks: list[dict[str, Any]] = []
 
             for index, chunk_id in enumerate(ids):
-                metadata = (
-                    metadatas[index]
-                    if index < len(metadatas)
-                    else {}
-                )
+                metadata = metadatas[index] if index < len(metadatas) else {}
 
                 chunks.append(
                     {
                         "id": chunk_id,
-                        "document": (
-                            documents[index]
-                            if index < len(documents)
-                            else ""
-                        ),
+                        "document": (documents[index] if index < len(documents) else ""),
                         "metadata": metadata or {},
-                        "embedding": (
-                            embeddings[index]
-                            if index < len(embeddings)
-                            else None
-                        ),
+                        "embedding": (embeddings[index] if index < len(embeddings) else None),
                     }
                 )
 
@@ -441,13 +348,9 @@ class VectorStore:
             return chunks
 
         except Exception as exc:
-            logger.exception(
-                "Unable to retrieve document vectors."
-            )
+            logger.exception("Unable to retrieve document vectors.")
 
-            raise VectorStoreError(
-                f"Unable to retrieve document vectors: {exc}"
-            ) from exc
+            raise VectorStoreError(f"Unable to retrieve document vectors: {exc}") from exc
 
     def delete_document(
         self,
@@ -458,9 +361,7 @@ class VectorStore:
         """
 
         if not document_id.strip():
-            raise ValueError(
-                "document_id cannot be empty."
-            )
+            raise ValueError("document_id cannot be empty.")
 
         try:
             existing = self.collection.get(
@@ -491,13 +392,9 @@ class VectorStore:
             return deleted_count
 
         except Exception as exc:
-            logger.exception(
-                "Unable to delete document vectors."
-            )
+            logger.exception("Unable to delete document vectors.")
 
-            raise VectorStoreError(
-                f"Unable to delete document vectors: {exc}"
-            ) from exc
+            raise VectorStoreError(f"Unable to delete document vectors: {exc}") from exc
 
     def delete_chunks(
         self,
@@ -510,14 +407,11 @@ class VectorStore:
         validated_ids = [
             chunk_id.strip()
             for chunk_id in chunk_ids
-            if isinstance(chunk_id, str)
-            and chunk_id.strip()
+            if isinstance(chunk_id, str) and chunk_id.strip()
         ]
 
         if not validated_ids:
-            raise EmptyVectorStoreInputError(
-                "At least one chunk ID is required."
-            )
+            raise EmptyVectorStoreInputError("At least one chunk ID is required.")
 
         try:
             self.collection.delete(
@@ -527,13 +421,9 @@ class VectorStore:
             return len(validated_ids)
 
         except Exception as exc:
-            logger.exception(
-                "Unable to delete vector chunks."
-            )
+            logger.exception("Unable to delete vector chunks.")
 
-            raise VectorStoreError(
-                f"Unable to delete vector chunks: {exc}"
-            ) from exc
+            raise VectorStoreError(f"Unable to delete vector chunks: {exc}") from exc
 
     def document_exists(
         self,
@@ -558,9 +448,7 @@ class VectorStore:
             return bool(result.get("ids"))
 
         except Exception as exc:
-            raise VectorStoreError(
-                f"Unable to check document vectors: {exc}"
-            ) from exc
+            raise VectorStoreError(f"Unable to check document vectors: {exc}") from exc
 
     def count(self) -> int:
         """
@@ -570,9 +458,7 @@ class VectorStore:
         try:
             return int(self.collection.count())
         except Exception as exc:
-            raise VectorStoreError(
-                f"Unable to count vectors: {exc}"
-            ) from exc
+            raise VectorStoreError(f"Unable to count vectors: {exc}") from exc
 
     def collection_information(
         self,
@@ -583,16 +469,10 @@ class VectorStore:
 
         return {
             "collection_name": self.collection_name,
-            "persist_directory": str(
-                self.persist_directory
-            ),
+            "persist_directory": str(self.persist_directory),
             "vector_count": self.count(),
-            "embedding_model": (
-                self.embedding_service.model_name
-            ),
-            "embedding_dimension": (
-                self.embedding_service.embedding_dimension
-            ),
+            "embedding_model": (self.embedding_service.model_name),
+            "embedding_dimension": (self.embedding_service.embedding_dimension),
             "metadata": self.collection.metadata,
         }
 
@@ -604,27 +484,16 @@ class VectorStore:
         """
 
         try:
-            self.client.delete_collection(
-                name=self.collection_name
-            )
+            self.client.delete_collection(name=self.collection_name)
 
-            self.collection = (
-                self.client.get_or_create_collection(
-                    name=self.collection_name,
-                    metadata={
-                        "description": (
-                            "Enterprise AI Workspace "
-                            "knowledge-base vectors"
-                        ),
-                        "embedding_model": (
-                            self.embedding_service.model_name
-                        ),
-                        "embedding_dimension": (
-                            self.embedding_service.embedding_dimension
-                        ),
-                        "hnsw:space": "cosine",
-                    },
-                )
+            self.collection = self.client.get_or_create_collection(
+                name=self.collection_name,
+                metadata={
+                    "description": ("Enterprise AI Workspace knowledge-base vectors"),
+                    "embedding_model": (self.embedding_service.model_name),
+                    "embedding_dimension": (self.embedding_service.embedding_dimension),
+                    "hnsw:space": "cosine",
+                },
             )
 
             logger.warning(
@@ -635,83 +504,57 @@ class VectorStore:
             return self.collection
 
         except Exception as exc:
-            logger.exception(
-                "Unable to reset vector collection."
-            )
+            logger.exception("Unable to reset vector collection.")
 
-            raise VectorStoreError(
-                f"Unable to reset vector collection: {exc}"
-            ) from exc
+            raise VectorStoreError(f"Unable to reset vector collection: {exc}") from exc
 
     def _validate_embedded_chunks(
         self,
-        embedded_chunks: Sequence[
-            dict[str, Any]
-        ],
+        embedded_chunks: Sequence[dict[str, Any]],
     ) -> list[dict[str, Any]]:
         if not embedded_chunks:
-            raise EmptyVectorStoreInputError(
-                "At least one embedded chunk is required."
-            )
+            raise EmptyVectorStoreInputError("At least one embedded chunk is required.")
 
         validated: list[dict[str, Any]] = []
 
-        for position, chunk in enumerate(
-            embedded_chunks
-        ):
+        for position, chunk in enumerate(embedded_chunks):
             if not isinstance(chunk, dict):
-                raise TypeError(
-                    f"Chunk at position {position} "
-                    "must be a dictionary."
-                )
+                raise TypeError(f"Chunk at position {position} must be a dictionary.")
 
             chunk_id = chunk.get("id")
             document = chunk.get("document")
             embedding = chunk.get("embedding")
             metadata = chunk.get("metadata", {})
 
-            if not isinstance(
-                chunk_id,
-                str,
-            ) or not chunk_id.strip():
-                raise VectorStoreError(
-                    f"Chunk at position {position} "
-                    "has an invalid ID."
+            if (
+                not isinstance(
+                    chunk_id,
+                    str,
                 )
+                or not chunk_id.strip()
+            ):
+                raise VectorStoreError(f"Chunk at position {position} has an invalid ID.")
 
-            if not isinstance(
-                document,
-                str,
-            ) or not document.strip():
-                raise VectorStoreError(
-                    f"Chunk at position {position} "
-                    "has empty document content."
+            if (
+                not isinstance(
+                    document,
+                    str,
                 )
+                or not document.strip()
+            ):
+                raise VectorStoreError(f"Chunk at position {position} has empty document content.")
 
             if not isinstance(metadata, dict):
-                raise VectorStoreError(
-                    f"Chunk at position {position} "
-                    "has invalid metadata."
-                )
+                raise VectorStoreError(f"Chunk at position {position} has invalid metadata.")
 
-            validated_embedding = (
-                self._validate_embedding(
-                    embedding
-                )
-            )
+            validated_embedding = self._validate_embedding(embedding)
 
             validated.append(
                 {
                     "id": chunk_id.strip(),
                     "document": document.strip(),
-                    "embedding": (
-                        validated_embedding
-                    ),
-                    "metadata": (
-                        self._prepare_metadata(
-                            metadata
-                        )
-                    ),
+                    "embedding": (validated_embedding),
+                    "metadata": (self._prepare_metadata(metadata)),
                 }
             )
 
@@ -722,28 +565,17 @@ class VectorStore:
         embedding: Sequence[float] | None,
     ) -> list[float]:
         if embedding is None:
-            raise VectorStoreError(
-                "Embedding cannot be missing."
-            )
+            raise VectorStoreError("Embedding cannot be missing.")
 
         if isinstance(embedding, str):
-            raise TypeError(
-                "Embedding must be a numeric sequence."
-            )
+            raise TypeError("Embedding must be a numeric sequence.")
 
         try:
-            vector = [
-                float(value)
-                for value in embedding
-            ]
+            vector = [float(value) for value in embedding]
         except (TypeError, ValueError) as exc:
-            raise VectorStoreError(
-                "Embedding contains invalid values."
-            ) from exc
+            raise VectorStoreError("Embedding contains invalid values.") from exc
 
-        expected_dimension = (
-            self.embedding_service.embedding_dimension
-        )
+        expected_dimension = self.embedding_service.embedding_dimension
 
         if len(vector) != expected_dimension:
             raise VectorDimensionMismatchError(
@@ -758,10 +590,7 @@ class VectorStore:
     def _prepare_metadata(
         metadata: dict[str, Any],
     ) -> dict[str, str | int | float | bool]:
-        prepared: dict[
-            str,
-            str | int | float | bool
-        ] = {}
+        prepared: dict[str, str | int | float | bool] = {}
 
         for key, value in metadata.items():
             if value is None:
@@ -775,9 +604,7 @@ class VectorStore:
             ):
                 prepared[field_name] = value
             else:
-                prepared[field_name] = str(
-                    value
-                )
+                prepared[field_name] = str(value)
 
         return prepared
 
@@ -791,31 +618,13 @@ class VectorStore:
         conditions: list[dict[str, Any]] = []
 
         if document_id:
-            conditions.append(
-                {
-                    "document_id": str(
-                        document_id
-                    )
-                }
-            )
+            conditions.append({"document_id": str(document_id)})
 
         if department:
-            conditions.append(
-                {
-                    "department": (
-                        department.strip()
-                    )
-                }
-            )
+            conditions.append({"department": (department.strip())})
 
         if document_type:
-            conditions.append(
-                {
-                    "document_type": (
-                        document_type.strip()
-                    )
-                }
-            )
+            conditions.append({"document_type": (document_type.strip())})
 
         if not conditions:
             return None
@@ -834,73 +643,33 @@ class VectorStore:
         minimum_similarity: float | None,
     ) -> list[dict[str, Any]]:
         ids = result.get("ids") or [[]]
-        documents = result.get(
-            "documents"
-        ) or [[]]
-        metadatas = result.get(
-            "metadatas"
-        ) or [[]]
-        distances = result.get(
-            "distances"
-        ) or [[]]
+        documents = result.get("documents") or [[]]
+        metadatas = result.get("metadatas") or [[]]
+        distances = result.get("distances") or [[]]
 
         result_ids = ids[0] if ids else []
-        result_documents = (
-            documents[0]
-            if documents
-            else []
-        )
-        result_metadatas = (
-            metadatas[0]
-            if metadatas
-            else []
-        )
-        result_distances = (
-            distances[0]
-            if distances
-            else []
-        )
+        result_documents = documents[0] if documents else []
+        result_metadatas = metadatas[0] if metadatas else []
+        result_distances = distances[0] if distances else []
 
         formatted: list[dict[str, Any]] = []
 
-        for index, chunk_id in enumerate(
-            result_ids
-        ):
-            distance = (
-                float(result_distances[index])
-                if index < len(
-                    result_distances
-                )
-                else 1.0
-            )
+        for index, chunk_id in enumerate(result_ids):
+            distance = float(result_distances[index]) if index < len(result_distances) else 1.0
 
             similarity = max(
                 0.0,
                 min(1.0, 1.0 - distance),
             )
 
-            if (
-                minimum_similarity is not None
-                and similarity
-                < minimum_similarity
-            ):
+            if minimum_similarity is not None and similarity < minimum_similarity:
                 continue
 
             formatted.append(
                 {
                     "id": chunk_id,
-                    "content": (
-                        result_documents[index]
-                        if index
-                        < len(result_documents)
-                        else ""
-                    ),
-                    "metadata": (
-                        result_metadatas[index]
-                        if index
-                        < len(result_metadatas)
-                        else {}
-                    )
+                    "content": (result_documents[index] if index < len(result_documents) else ""),
+                    "metadata": (result_metadatas[index] if index < len(result_metadatas) else {})
                     or {},
                     "distance": distance,
                     "similarity": similarity,
@@ -913,12 +682,8 @@ class VectorStore:
 
 @lru_cache(maxsize=4)
 def get_vector_store(
-    collection_name: str = (
-        DEFAULT_COLLECTION_NAME
-    ),
-    persist_directory: str = (
-        DEFAULT_PERSIST_DIRECTORY
-    ),
+    collection_name: str = (DEFAULT_COLLECTION_NAME),
+    persist_directory: str = (DEFAULT_PERSIST_DIRECTORY),
 ) -> VectorStore:
     """
     Returns a cached VectorStore instance.

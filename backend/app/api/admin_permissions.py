@@ -5,7 +5,6 @@ from math import ceil
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
-
 router = APIRouter(
     prefix="/api/admin/permissions",
     tags=["Admin Permissions"],
@@ -127,12 +126,9 @@ async def list_permissions(
         filtered = [
             permission
             for permission in filtered
-            if normalized_search
-            in permission["permission_name"].lower()
-            or normalized_search
-            in permission["module"].lower()
-            or normalized_search
-            in (permission["description"] or "").lower()
+            if normalized_search in permission["permission_name"].lower()
+            or normalized_search in permission["module"].lower()
+            or normalized_search in (permission["description"] or "").lower()
         ]
 
     if module:
@@ -141,8 +137,7 @@ async def list_permissions(
         filtered = [
             permission
             for permission in filtered
-            if permission["module"].lower()
-            == normalized_module
+            if permission["module"].lower() == normalized_module
         ]
 
     total = len(filtered)
@@ -157,10 +152,7 @@ async def list_permissions(
     items = filtered[start:end]
 
     return PermissionListResponse(
-        items=[
-            PermissionResponse(**item)
-            for item in items
-        ],
+        items=[PermissionResponse(**item) for item in items],
         total=total,
         page=page,
         page_size=page_size,
@@ -176,11 +168,7 @@ async def list_permissions(
 async def create_permission(
     payload: PermissionCreate,
 ) -> PermissionResponse:
-    permission_name = (
-        payload.permission_name
-        .strip()
-        .upper()
-    )
+    permission_name = payload.permission_name.strip().upper()
 
     module = payload.module.strip().lower()
 
@@ -188,8 +176,7 @@ async def create_permission(
         (
             permission
             for permission in _permissions
-            if permission["permission_name"]
-            == permission_name
+            if permission["permission_name"] == permission_name
         ),
         None,
     )
@@ -202,10 +189,7 @@ async def create_permission(
 
     next_id = (
         max(
-            (
-                permission["id"]
-                for permission in _permissions
-            ),
+            (permission["id"] for permission in _permissions),
             default=0,
         )
         + 1
@@ -215,11 +199,7 @@ async def create_permission(
         "id": next_id,
         "permission_name": permission_name,
         "module": module,
-        "description": (
-            payload.description.strip()
-            if payload.description
-            else None
-        ),
+        "description": (payload.description.strip() if payload.description else None),
         "created_at": None,
     }
 
@@ -236,12 +216,7 @@ async def get_permission(
     permission_id: int,
 ) -> PermissionResponse:
     permission = next(
-        (
-            permission
-            for permission in _permissions
-            if permission["id"]
-            == permission_id
-        ),
+        (permission for permission in _permissions if permission["id"] == permission_id),
         None,
     )
 
@@ -263,12 +238,7 @@ async def update_permission(
     payload: PermissionUpdate,
 ) -> PermissionResponse:
     permission = next(
-        (
-            permission
-            for permission in _permissions
-            if permission["id"]
-            == permission_id
-        ),
+        (permission for permission in _permissions if permission["id"] == permission_id),
         None,
     )
 
@@ -279,24 +249,13 @@ async def update_permission(
         )
 
     if payload.permission_name is not None:
-        permission["permission_name"] = (
-            payload.permission_name
-            .strip()
-            .upper()
-        )
+        permission["permission_name"] = payload.permission_name.strip().upper()
 
     if payload.module is not None:
-        permission["module"] = (
-            payload.module
-            .strip()
-            .lower()
-        )
+        permission["module"] = payload.module.strip().lower()
 
     if payload.description is not None:
-        permission["description"] = (
-            payload.description.strip()
-            or None
-        )
+        permission["description"] = payload.description.strip() or None
 
     return PermissionResponse(**permission)
 
@@ -308,12 +267,7 @@ async def delete_permission(
     permission_id: int,
 ) -> dict[str, int | str]:
     permission = next(
-        (
-            permission
-            for permission in _permissions
-            if permission["id"]
-            == permission_id
-        ),
+        (permission for permission in _permissions if permission["id"] == permission_id),
         None,
     )
 
@@ -327,9 +281,7 @@ async def delete_permission(
 
     for role_id, permission_ids in _role_permissions.items():
         _role_permissions[role_id] = [
-            current_id
-            for current_id in permission_ids
-            if current_id != permission_id
+            current_id for current_id in permission_ids if current_id != permission_id
         ]
 
     return {
@@ -345,10 +297,7 @@ async def update_role_permissions(
     role_id: int,
     payload: RolePermissionUpdate,
 ) -> dict[str, object]:
-    existing_ids = {
-        permission["id"]
-        for permission in _permissions
-    }
+    existing_ids = {permission["id"] for permission in _permissions}
 
     invalid_ids = [
         permission_id
@@ -365,9 +314,7 @@ async def update_role_permissions(
             },
         )
 
-    _role_permissions[role_id] = list(
-        dict.fromkeys(payload.permission_ids)
-    )
+    _role_permissions[role_id] = list(dict.fromkeys(payload.permission_ids))
 
     return {
         "message": "Role permissions updated successfully.",

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
@@ -20,7 +20,7 @@ from app.chat.models import (
 
 
 def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def get_chat_analytics_summary(
@@ -49,23 +49,13 @@ def get_chat_analytics_summary(
                 )
             )
         ),
-    ).where(
-        Conversation.user_id == user_id
-    )
+    ).where(Conversation.user_id == user_id)
 
-    conversation_result = db.execute(
-        conversation_statement
-    ).one()
+    conversation_result = db.execute(conversation_statement).one()
 
-    total_conversations = (
-        conversation_result[0] or 0
-    )
-    active_conversations = (
-        conversation_result[1] or 0
-    )
-    archived_conversations = (
-        conversation_result[2] or 0
-    )
+    total_conversations = conversation_result[0] or 0
+    active_conversations = conversation_result[1] or 0
+    archived_conversations = conversation_result[2] or 0
 
     message_statement = (
         select(
@@ -81,8 +71,7 @@ def get_chat_analytics_summary(
             func.count(
                 case(
                     (
-                        Message.role
-                        == MessageRole.ASSISTANT,
+                        Message.role == MessageRole.ASSISTANT,
                         1,
                     )
                 )
@@ -110,17 +99,12 @@ def get_chat_analytics_summary(
         )
         .join(
             Conversation,
-            Message.conversation_id
-            == Conversation.id,
+            Message.conversation_id == Conversation.id,
         )
-        .where(
-            Conversation.user_id == user_id
-        )
+        .where(Conversation.user_id == user_id)
     )
 
-    message_result = db.execute(
-        message_statement
-    ).one()
+    message_result = db.execute(message_statement).one()
 
     total_messages = message_result[0] or 0
     user_messages = message_result[1] or 0
@@ -128,75 +112,51 @@ def get_chat_analytics_summary(
     system_messages = message_result[3] or 0
     total_tokens = int(message_result[4] or 0)
     prompt_tokens = int(message_result[5] or 0)
-    completion_tokens = int(
-        message_result[6] or 0
-    )
+    completion_tokens = int(message_result[6] or 0)
 
     provider_statement = (
         select(
             Message.provider,
-            func.count(Message.id).label(
-                "usage_count"
-            ),
+            func.count(Message.id).label("usage_count"),
         )
         .join(
             Conversation,
-            Message.conversation_id
-            == Conversation.id,
+            Message.conversation_id == Conversation.id,
         )
         .where(
             Conversation.user_id == user_id,
             Message.provider.is_not(None),
         )
         .group_by(Message.provider)
-        .order_by(
-            func.count(Message.id).desc()
-        )
+        .order_by(func.count(Message.id).desc())
         .limit(1)
     )
 
-    provider_result = db.execute(
-        provider_statement
-    ).first()
+    provider_result = db.execute(provider_statement).first()
 
-    most_used_provider = (
-        provider_result[0]
-        if provider_result
-        else None
-    )
+    most_used_provider = provider_result[0] if provider_result else None
 
     model_statement = (
         select(
             Message.model_name,
-            func.count(Message.id).label(
-                "usage_count"
-            ),
+            func.count(Message.id).label("usage_count"),
         )
         .join(
             Conversation,
-            Message.conversation_id
-            == Conversation.id,
+            Message.conversation_id == Conversation.id,
         )
         .where(
             Conversation.user_id == user_id,
             Message.model_name.is_not(None),
         )
         .group_by(Message.model_name)
-        .order_by(
-            func.count(Message.id).desc()
-        )
+        .order_by(func.count(Message.id).desc())
         .limit(1)
     )
 
-    model_result = db.execute(
-        model_statement
-    ).first()
+    model_result = db.execute(model_statement).first()
 
-    most_used_model = (
-        model_result[0]
-        if model_result
-        else None
-    )
+    most_used_model = model_result[0] if model_result else None
 
     average_messages = (
         round(
@@ -229,12 +189,8 @@ def get_chat_analytics_summary(
         completion_tokens=completion_tokens,
         most_used_provider=most_used_provider,
         most_used_model=most_used_model,
-        average_messages_per_conversation=(
-            average_messages
-        ),
-        average_tokens_per_conversation=(
-            average_tokens
-        ),
+        average_messages_per_conversation=(average_messages),
+        average_tokens_per_conversation=(average_tokens),
     )
 
 
@@ -247,16 +203,12 @@ def get_chat_usage_analytics(
     Return provider, model and daily activity analytics.
     """
 
-    start_datetime = utc_now() - timedelta(
-        days=days - 1
-    )
+    start_datetime = utc_now() - timedelta(days=days - 1)
 
     provider_statement = (
         select(
             Message.provider,
-            func.count(Message.id).label(
-                "message_count"
-            ),
+            func.count(Message.id).label("message_count"),
             func.coalesce(
                 func.sum(Message.token_count),
                 0,
@@ -264,8 +216,7 @@ def get_chat_usage_analytics(
         )
         .join(
             Conversation,
-            Message.conversation_id
-            == Conversation.id,
+            Message.conversation_id == Conversation.id,
         )
         .where(
             Conversation.user_id == user_id,
@@ -273,22 +224,16 @@ def get_chat_usage_analytics(
             Message.created_at >= start_datetime,
         )
         .group_by(Message.provider)
-        .order_by(
-            func.count(Message.id).desc()
-        )
+        .order_by(func.count(Message.id).desc())
     )
 
-    provider_rows = db.execute(
-        provider_statement
-    ).all()
+    provider_rows = db.execute(provider_statement).all()
 
     providers = [
         ProviderUsage(
             provider=row.provider,
             message_count=row.message_count,
-            total_tokens=int(
-                row.total_tokens or 0
-            ),
+            total_tokens=int(row.total_tokens or 0),
         )
         for row in provider_rows
     ]
@@ -297,9 +242,7 @@ def get_chat_usage_analytics(
         select(
             Message.model_name,
             Message.provider,
-            func.count(Message.id).label(
-                "message_count"
-            ),
+            func.count(Message.id).label("message_count"),
             func.coalesce(
                 func.sum(Message.token_count),
                 0,
@@ -307,8 +250,7 @@ def get_chat_usage_analytics(
         )
         .join(
             Conversation,
-            Message.conversation_id
-            == Conversation.id,
+            Message.conversation_id == Conversation.id,
         )
         .where(
             Conversation.user_id == user_id,
@@ -319,39 +261,27 @@ def get_chat_usage_analytics(
             Message.model_name,
             Message.provider,
         )
-        .order_by(
-            func.count(Message.id).desc()
-        )
+        .order_by(func.count(Message.id).desc())
     )
 
-    model_rows = db.execute(
-        model_statement
-    ).all()
+    model_rows = db.execute(model_statement).all()
 
     models = [
         ModelUsage(
             model=row.model_name,
             provider=row.provider,
             message_count=row.message_count,
-            total_tokens=int(
-                row.total_tokens or 0
-            ),
+            total_tokens=int(row.total_tokens or 0),
         )
         for row in model_rows
     ]
 
-    message_date = func.date(
-        Message.created_at
-    )
+    message_date = func.date(Message.created_at)
 
     message_activity_statement = (
         select(
-            message_date.label(
-                "activity_date"
-            ),
-            func.count(Message.id).label(
-                "message_count"
-            ),
+            message_date.label("activity_date"),
+            func.count(Message.id).label("message_count"),
             func.coalesce(
                 func.sum(Message.token_count),
                 0,
@@ -359,8 +289,7 @@ def get_chat_usage_analytics(
         )
         .join(
             Conversation,
-            Message.conversation_id
-            == Conversation.id,
+            Message.conversation_id == Conversation.id,
         )
         .where(
             Conversation.user_id == user_id,
@@ -370,70 +299,47 @@ def get_chat_usage_analytics(
         .order_by(message_date.asc())
     )
 
-    message_activity_rows = db.execute(
-        message_activity_statement
-    ).all()
+    message_activity_rows = db.execute(message_activity_statement).all()
 
-    conversation_date = func.date(
-        Conversation.created_at
-    )
+    conversation_date = func.date(Conversation.created_at)
 
     conversation_activity_statement = (
         select(
-            conversation_date.label(
-                "activity_date"
-            ),
-            func.count(
-                Conversation.id
-            ).label("conversation_count"),
+            conversation_date.label("activity_date"),
+            func.count(Conversation.id).label("conversation_count"),
         )
         .where(
             Conversation.user_id == user_id,
-            Conversation.created_at
-            >= start_datetime,
+            Conversation.created_at >= start_datetime,
         )
         .group_by(conversation_date)
     )
 
-    conversation_activity_rows = db.execute(
-        conversation_activity_statement
-    ).all()
+    conversation_activity_rows = db.execute(conversation_activity_statement).all()
 
     message_activity_map = {
         row.activity_date: {
             "messages": row.message_count,
-            "total_tokens": int(
-                row.total_tokens or 0
-            ),
+            "total_tokens": int(row.total_tokens or 0),
         }
         for row in message_activity_rows
     }
 
     conversation_activity_map = {
-        row.activity_date: (
-            row.conversation_count
-        )
-        for row in conversation_activity_rows
+        row.activity_date: (row.conversation_count) for row in conversation_activity_rows
     }
 
-    daily_activity: list[
-        DailyChatActivity
-    ] = []
+    daily_activity: list[DailyChatActivity] = []
 
     for day_offset in range(days):
-        current_date = (
-            start_datetime.date()
-            + timedelta(days=day_offset)
-        )
+        current_date = start_datetime.date() + timedelta(days=day_offset)
 
-        message_data = (
-            message_activity_map.get(
-                current_date,
-                {
-                    "messages": 0,
-                    "total_tokens": 0,
-                },
-            )
+        message_data = message_activity_map.get(
+            current_date,
+            {
+                "messages": 0,
+                "total_tokens": 0,
+            },
         )
 
         daily_activity.append(
@@ -445,12 +351,8 @@ def get_chat_usage_analytics(
                         0,
                     )
                 ),
-                messages=message_data[
-                    "messages"
-                ],
-                total_tokens=message_data[
-                    "total_tokens"
-                ],
+                messages=message_data["messages"],
+                total_tokens=message_data["total_tokens"],
             )
         )
 

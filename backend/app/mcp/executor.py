@@ -67,10 +67,7 @@ class MCPExecutor:
             return MCPToolCallResult(
                 tool_name=tool.name,
                 success=False,
-                error=(
-                    f"Tool execution exceeded "
-                    f"{self.timeout_seconds} seconds."
-                ),
+                error=(f"Tool execution exceeded {self.timeout_seconds} seconds."),
                 execution_time_ms=self._elapsed_ms(start_time),
             )
 

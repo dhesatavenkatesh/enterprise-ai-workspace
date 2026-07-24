@@ -38,7 +38,6 @@ from app.api.dependencies.rbac import require_admin
 from app.database.session import get_db
 from app.models.user import User
 
-
 router = APIRouter(
     prefix="/users",
     tags=["Sprint 5 - Admin Users"],
@@ -177,10 +176,7 @@ def change_user_status(
     db: DatabaseSession,
     current_user: AdminUser,
 ) -> AdminUserResponse:
-    if (
-        current_user.id == user_id
-        and payload.is_active is False
-    ):
+    if current_user.id == user_id and payload.is_active is False:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You cannot deactivate your own account",

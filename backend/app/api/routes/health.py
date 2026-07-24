@@ -1,37 +1,23 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import text
-from sqlalchemy.orm import Session
+from datetime import UTC, datetime
 
-from app.database.session import get_db
-
+from fastapi import APIRouter
 
 router = APIRouter(
-    prefix="/health",
     tags=["Health"],
 )
 
 
-@router.get("")
+@router.get(
+    "/health",
+    summary="Application health check",
+)
 def health_check() -> dict[str, str]:
+    """Return the current application health status."""
+
     return {
         "status": "healthy",
+        "application": "Enterprise AI Workspace",
+        "version": "5.0.0",
+        "environment": "development",
+        "timestamp": datetime.now(UTC).isoformat(),
     }
-
-
-@router.get("/database")
-def database_health_check(
-    db: Session = Depends(get_db),
-) -> dict[str, str]:
-    try:
-        db.execute(text("SELECT 1"))
-
-        return {
-            "status": "healthy",
-            "database": "connected",
-        }
-
-    except Exception as exc:
-        raise HTTPException(
-            status_code=503,
-            detail="Database connection failed",
-        ) from exc

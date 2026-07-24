@@ -12,7 +12,6 @@ from openai import AsyncOpenAI
 
 from app.core.config import settings
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -74,29 +73,19 @@ class LLMProvider(ABC):
         max_retries: int,
     ) -> None:
         if not model.strip():
-            raise LLMConfigurationError(
-                f"A model name is required for {self.provider_name}."
-            )
+            raise LLMConfigurationError(f"A model name is required for {self.provider_name}.")
 
         if not 0 <= temperature <= 2:
-            raise LLMConfigurationError(
-                "Temperature must be between 0 and 2."
-            )
+            raise LLMConfigurationError("Temperature must be between 0 and 2.")
 
         if max_tokens <= 0:
-            raise LLMConfigurationError(
-                "max_tokens must be greater than zero."
-            )
+            raise LLMConfigurationError("max_tokens must be greater than zero.")
 
         if timeout_seconds <= 0:
-            raise LLMConfigurationError(
-                "timeout_seconds must be greater than zero."
-            )
+            raise LLMConfigurationError("timeout_seconds must be greater than zero.")
 
         if max_retries <= 0:
-            raise LLMConfigurationError(
-                "max_retries must be greater than zero."
-            )
+            raise LLMConfigurationError("max_retries must be greater than zero.")
 
         self.model = model
         self.temperature = temperature
@@ -129,9 +118,7 @@ class LLMProvider(ABC):
         messages: list[LLMMessage],
     ) -> list[dict[str, str]]:
         if not messages:
-            raise LLMProviderError(
-                "At least one chat message is required."
-            )
+            raise LLMProviderError("At least one chat message is required.")
 
         prepared_messages: list[dict[str, str]] = []
 
@@ -139,9 +126,7 @@ class LLMProvider(ABC):
             content = message.content.strip()
 
             if not content:
-                raise LLMProviderError(
-                    "Chat messages cannot contain empty content."
-                )
+                raise LLMProviderError("Chat messages cannot contain empty content.")
 
             prepared_messages.append(
                 {
@@ -159,9 +144,7 @@ class LLMProvider(ABC):
         value = self.temperature if override is None else override
 
         if not 0 <= value <= 2:
-            raise LLMProviderError(
-                "Temperature must be between 0 and 2."
-            )
+            raise LLMProviderError("Temperature must be between 0 and 2.")
 
         return value
 
@@ -172,9 +155,7 @@ class LLMProvider(ABC):
         value = self.max_tokens if override is None else override
 
         if value <= 0:
-            raise LLMProviderError(
-                "max_tokens must be greater than zero."
-            )
+            raise LLMProviderError("max_tokens must be greater than zero.")
 
         return value
 
@@ -222,13 +203,11 @@ class LLMProvider(ABC):
 
         if isinstance(last_error, TimeoutError):
             raise LLMTimeoutError(
-                f"{self.provider_name} request timed out after "
-                f"{self.max_retries} attempts."
+                f"{self.provider_name} request timed out after {self.max_retries} attempts."
             ) from last_error
 
         raise LLMProviderError(
-            f"{self.provider_name} request failed after "
-            f"{self.max_retries} attempts: {last_error}"
+            f"{self.provider_name} request failed after {self.max_retries} attempts: {last_error}"
         ) from last_error
 
 
@@ -245,9 +224,7 @@ class OpenAIProvider(LLMProvider):
         max_retries: int,
     ) -> None:
         if not api_key:
-            raise LLMConfigurationError(
-                "OPENAI_API_KEY is not configured."
-            )
+            raise LLMConfigurationError("OPENAI_API_KEY is not configured.")
 
         super().__init__(
             model=model,
@@ -286,15 +263,9 @@ class OpenAIProvider(LLMProvider):
             choice = response.choices[0]
             usage = response.usage
 
-            prompt_tokens = (
-                usage.prompt_tokens if usage is not None else 0
-            )
-            completion_tokens = (
-                usage.completion_tokens if usage is not None else 0
-            )
-            total_tokens = (
-                usage.total_tokens if usage is not None else 0
-            )
+            prompt_tokens = usage.prompt_tokens if usage is not None else 0
+            completion_tokens = usage.completion_tokens if usage is not None else 0
+            total_tokens = usage.total_tokens if usage is not None else 0
 
             return LLMResponse(
                 content=choice.message.content or "",
@@ -309,9 +280,7 @@ class OpenAIProvider(LLMProvider):
         except LLMServiceError:
             raise
         except Exception as exc:
-            raise LLMProviderError(
-                f"OpenAI generation failed: {exc}"
-            ) from exc
+            raise LLMProviderError(f"OpenAI generation failed: {exc}") from exc
 
     async def stream(
         self,
@@ -345,25 +314,17 @@ class OpenAIProvider(LLMProvider):
 
             except TimeoutError as exc:
                 if emitted_content:
-                    raise LLMTimeoutError(
-                        "OpenAI stream timed out after output started."
-                    ) from exc
+                    raise LLMTimeoutError("OpenAI stream timed out after output started.") from exc
 
                 if attempt == self.max_retries:
-                    raise LLMTimeoutError(
-                        "OpenAI stream timed out."
-                    ) from exc
+                    raise LLMTimeoutError("OpenAI stream timed out.") from exc
 
             except Exception as exc:
                 if emitted_content:
-                    raise LLMProviderError(
-                        f"OpenAI stream interrupted: {exc}"
-                    ) from exc
+                    raise LLMProviderError(f"OpenAI stream interrupted: {exc}") from exc
 
                 if attempt == self.max_retries:
-                    raise LLMProviderError(
-                        f"OpenAI streaming failed: {exc}"
-                    ) from exc
+                    raise LLMProviderError(f"OpenAI streaming failed: {exc}") from exc
 
             await asyncio.sleep(min(2 ** (attempt - 1), 8))
 
@@ -381,9 +342,7 @@ class GroqProvider(LLMProvider):
         max_retries: int,
     ) -> None:
         if not api_key:
-            raise LLMConfigurationError(
-                "GROQ_API_KEY is not configured."
-            )
+            raise LLMConfigurationError("GROQ_API_KEY is not configured.")
 
         super().__init__(
             model=model,
@@ -422,15 +381,9 @@ class GroqProvider(LLMProvider):
             choice = response.choices[0]
             usage = response.usage
 
-            prompt_tokens = (
-                usage.prompt_tokens if usage is not None else 0
-            )
-            completion_tokens = (
-                usage.completion_tokens if usage is not None else 0
-            )
-            total_tokens = (
-                usage.total_tokens if usage is not None else 0
-            )
+            prompt_tokens = usage.prompt_tokens if usage is not None else 0
+            completion_tokens = usage.completion_tokens if usage is not None else 0
+            total_tokens = usage.total_tokens if usage is not None else 0
 
             return LLMResponse(
                 content=choice.message.content or "",
@@ -445,9 +398,7 @@ class GroqProvider(LLMProvider):
         except LLMServiceError:
             raise
         except Exception as exc:
-            raise LLMProviderError(
-                f"Groq generation failed: {exc}"
-            ) from exc
+            raise LLMProviderError(f"Groq generation failed: {exc}") from exc
 
     async def stream(
         self,
@@ -481,25 +432,17 @@ class GroqProvider(LLMProvider):
 
             except TimeoutError as exc:
                 if emitted_content:
-                    raise LLMTimeoutError(
-                        "Groq stream timed out after output started."
-                    ) from exc
+                    raise LLMTimeoutError("Groq stream timed out after output started.") from exc
 
                 if attempt == self.max_retries:
-                    raise LLMTimeoutError(
-                        "Groq stream timed out."
-                    ) from exc
+                    raise LLMTimeoutError("Groq stream timed out.") from exc
 
             except Exception as exc:
                 if emitted_content:
-                    raise LLMProviderError(
-                        f"Groq stream interrupted: {exc}"
-                    ) from exc
+                    raise LLMProviderError(f"Groq stream interrupted: {exc}") from exc
 
                 if attempt == self.max_retries:
-                    raise LLMProviderError(
-                        f"Groq streaming failed: {exc}"
-                    ) from exc
+                    raise LLMProviderError(f"Groq streaming failed: {exc}") from exc
 
             await asyncio.sleep(min(2 ** (attempt - 1), 8))
 
@@ -528,8 +471,7 @@ class OllamaProvider(LLMProvider):
             from ollama import AsyncClient
         except ImportError as exc:
             raise LLMConfigurationError(
-                "Ollama support requires the 'ollama' package. "
-                "Install it using: pip install ollama"
+                "Ollama support requires the 'ollama' package. Install it using: pip install ollama"
             ) from exc
 
         self.client = AsyncClient(
@@ -561,12 +503,8 @@ class OllamaProvider(LLMProvider):
             response = await self._run_with_retry(operation)
 
             content = response["message"]["content"]
-            prompt_tokens = int(
-                response.get("prompt_eval_count", 0)
-            )
-            completion_tokens = int(
-                response.get("eval_count", 0)
-            )
+            prompt_tokens = int(response.get("prompt_eval_count", 0))
+            completion_tokens = int(response.get("eval_count", 0))
 
             return LLMResponse(
                 content=content,
@@ -581,9 +519,7 @@ class OllamaProvider(LLMProvider):
         except LLMServiceError:
             raise
         except Exception as exc:
-            raise LLMProviderError(
-                f"Ollama generation failed: {exc}"
-            ) from exc
+            raise LLMProviderError(f"Ollama generation failed: {exc}") from exc
 
     async def stream(
         self,
@@ -619,25 +555,17 @@ class OllamaProvider(LLMProvider):
 
             except TimeoutError as exc:
                 if emitted_content:
-                    raise LLMTimeoutError(
-                        "Ollama stream timed out after output started."
-                    ) from exc
+                    raise LLMTimeoutError("Ollama stream timed out after output started.") from exc
 
                 if attempt == self.max_retries:
-                    raise LLMTimeoutError(
-                        "Ollama stream timed out."
-                    ) from exc
+                    raise LLMTimeoutError("Ollama stream timed out.") from exc
 
             except Exception as exc:
                 if emitted_content:
-                    raise LLMProviderError(
-                        f"Ollama stream interrupted: {exc}"
-                    ) from exc
+                    raise LLMProviderError(f"Ollama stream interrupted: {exc}") from exc
 
                 if attempt == self.max_retries:
-                    raise LLMProviderError(
-                        f"Ollama streaming failed: {exc}"
-                    ) from exc
+                    raise LLMProviderError(f"Ollama streaming failed: {exc}") from exc
 
             await asyncio.sleep(min(2 ** (attempt - 1), 8))
 
@@ -692,11 +620,7 @@ def create_llm_provider(
     Factory that creates the configured LLM provider.
     """
 
-    selected_provider = (
-        provider_name
-        or settings.llm_provider
-        or "groq"
-    ).strip().lower()
+    selected_provider = (provider_name or settings.llm_provider or "groq").strip().lower()
 
     common_options = {
         "temperature": settings.llm_temperature,

@@ -32,17 +32,9 @@ def create_prompt_template(
     template = PromptTemplate(
         user_id=user_id,
         name=payload.name.strip(),
-        description=(
-            payload.description.strip()
-            if payload.description
-            else None
-        ),
+        description=(payload.description.strip() if payload.description else None),
         content=payload.content.strip(),
-        category=(
-            payload.category.strip()
-            if payload.category
-            else None
-        ),
+        category=(payload.category.strip() if payload.category else None),
         status=payload.status,
         is_public=payload.is_public,
         usage_count=0,
@@ -101,21 +93,15 @@ def get_owned_prompt_template(
     This function is used for update and delete operations.
     """
 
-    statement = select(PromptTemplate).where(
-        PromptTemplate.id == template_id
-    )
+    statement = select(PromptTemplate).where(PromptTemplate.id == template_id)
 
     template = db.scalar(statement)
 
     if template is None:
-        raise PromptTemplateNotFoundError(
-            "Prompt template was not found."
-        )
+        raise PromptTemplateNotFoundError("Prompt template was not found.")
 
     if template.user_id != user_id:
-        raise PromptTemplatePermissionError(
-            "You do not have permission to modify this template."
-        )
+        raise PromptTemplatePermissionError("You do not have permission to modify this template.")
 
     return template
 
@@ -144,20 +130,13 @@ def list_prompt_templates(
             )
         )
     else:
-        conditions.append(
-            PromptTemplate.user_id == user_id
-        )
+        conditions.append(PromptTemplate.user_id == user_id)
 
     if category:
-        conditions.append(
-            func.lower(PromptTemplate.category)
-            == category.strip().lower()
-        )
+        conditions.append(func.lower(PromptTemplate.category) == category.strip().lower())
 
     if status:
-        conditions.append(
-            PromptTemplate.status == status
-        )
+        conditions.append(PromptTemplate.status == status)
 
     if search:
         search_value = f"%{search.strip()}%"
@@ -171,10 +150,7 @@ def list_prompt_templates(
             )
         )
 
-    count_statement = (
-        select(func.count(PromptTemplate.id))
-        .where(*conditions)
-    )
+    count_statement = select(func.count(PromptTemplate.id)).where(*conditions)
 
     total = db.scalar(count_statement) or 0
 
@@ -191,9 +167,7 @@ def list_prompt_templates(
         .limit(page_size)
     )
 
-    templates = list(
-        db.scalars(statement).all()
-    )
+    templates = list(db.scalars(statement).all())
 
     return templates, total
 
@@ -214,41 +188,19 @@ def update_prompt_template(
         user_id=user_id,
     )
 
-    update_data = payload.model_dump(
-        exclude_unset=True
-    )
+    update_data = payload.model_dump(exclude_unset=True)
 
-    if (
-        "name" in update_data
-        and update_data["name"] is not None
-    ):
-        update_data["name"] = (
-            update_data["name"].strip()
-        )
+    if "name" in update_data and update_data["name"] is not None:
+        update_data["name"] = update_data["name"].strip()
 
-    if (
-        "description" in update_data
-        and update_data["description"] is not None
-    ):
-        update_data["description"] = (
-            update_data["description"].strip()
-        )
+    if "description" in update_data and update_data["description"] is not None:
+        update_data["description"] = update_data["description"].strip()
 
-    if (
-        "content" in update_data
-        and update_data["content"] is not None
-    ):
-        update_data["content"] = (
-            update_data["content"].strip()
-        )
+    if "content" in update_data and update_data["content"] is not None:
+        update_data["content"] = update_data["content"].strip()
 
-    if (
-        "category" in update_data
-        and update_data["category"] is not None
-    ):
-        update_data["category"] = (
-            update_data["category"].strip()
-        )
+    if "category" in update_data and update_data["category"] is not None:
+        update_data["category"] = update_data["category"].strip()
 
     for field_name, value in update_data.items():
         setattr(template, field_name, value)
@@ -302,9 +254,7 @@ def increment_prompt_template_usage(
         user_id=user_id,
     )
 
-    template.usage_count = (
-        template.usage_count or 0
-    ) + 1
+    template.usage_count = (template.usage_count or 0) + 1
 
     try:
         db.commit()
@@ -341,20 +291,14 @@ def render_prompt_template(
     )
 
     if template.status != PromptStatus.ACTIVE:
-        raise PromptTemplatePermissionError(
-            "This prompt template is not active."
-        )
+        raise PromptTemplatePermissionError("This prompt template is not active.")
 
     clean_question = question.strip()
     template_content = template.content.strip()
 
-    contains_question_placeholder = (
-        "{question}" in template_content
-    )
+    contains_question_placeholder = "{question}" in template_content
 
-    contains_prompt_placeholder = (
-        "{prompt}" in template_content
-    )
+    contains_prompt_placeholder = "{prompt}" in template_content
 
     rendered_prompt = template_content.replace(
         "{question}",
@@ -366,18 +310,10 @@ def render_prompt_template(
         clean_question,
     )
 
-    if not (
-        contains_question_placeholder
-        or contains_prompt_placeholder
-    ):
-        rendered_prompt = (
-            f"{template_content}\n\n"
-            f"User question:\n{clean_question}"
-        )
+    if not (contains_question_placeholder or contains_prompt_placeholder):
+        rendered_prompt = f"{template_content}\n\nUser question:\n{clean_question}"
 
-    template.usage_count = (
-        template.usage_count or 0
-    ) + 1
+    template.usage_count = (template.usage_count or 0) + 1
 
     # Do not commit here.
     # The chat endpoint commits the complete chat transaction.

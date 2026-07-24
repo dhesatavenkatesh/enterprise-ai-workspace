@@ -34,7 +34,6 @@ from app.chat.prompt_service import (
 from app.database.session import get_db
 from app.models.user import User
 
-
 router = APIRouter(
     prefix="/api/prompt-templates",
     tags=["Prompt Templates"],
@@ -105,10 +104,7 @@ def get_templates(
     )
 
     return PromptTemplateListResponse(
-        items=[
-            PromptTemplateResponse.model_validate(template)
-            for template in templates
-        ],
+        items=[PromptTemplateResponse.model_validate(template) for template in templates],
         total=total,
         page=page,
         page_size=page_size,

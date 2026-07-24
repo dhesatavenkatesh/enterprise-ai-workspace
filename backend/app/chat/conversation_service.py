@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from math import ceil
 from uuid import UUID
 
@@ -18,7 +18,7 @@ from app.chat.models import (
 
 def utc_now() -> datetime:
     """Return the current timezone-aware UTC datetime."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def create_conversation(
@@ -52,8 +52,7 @@ def create_conversation(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
-                "Unable to create the conversation because "
-                "its database relationships are invalid."
+                "Unable to create the conversation because its database relationships are invalid."
             ),
         ) from exc
 
@@ -83,10 +82,7 @@ def generate_conversation_title(
     if len(cleaned_prompt) <= max_length:
         return cleaned_prompt
 
-    return (
-        cleaned_prompt[: max_length - 3].rstrip()
-        + "..."
-    )
+    return cleaned_prompt[: max_length - 3].rstrip() + "..."
 
 
 def get_user_conversation(
@@ -106,9 +102,7 @@ def get_user_conversation(
     )
 
     if include_messages:
-        statement = statement.options(
-            selectinload(Conversation.messages)
-        )
+        statement = statement.options(selectinload(Conversation.messages))
 
     conversation = db.scalar(statement)
 
@@ -131,19 +125,14 @@ def get_conversation_by_id(
     This is used internally before creating messages.
     """
 
-    statement = select(Conversation).where(
-        Conversation.id == conversation_id
-    )
+    statement = select(Conversation).where(Conversation.id == conversation_id)
 
     conversation = db.scalar(statement)
 
     if conversation is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=(
-                "Cannot add a message because the "
-                "conversation does not exist."
-            ),
+            detail=("Cannot add a message because the conversation does not exist."),
         )
 
     return conversation
@@ -199,10 +188,7 @@ def add_message(
     conversation.updated_at = utc_now()
 
     if role == MessageRole.ASSISTANT:
-        conversation.total_tokens = (
-            max(conversation.total_tokens, 0)
-            + max(token_count, 0)
-        )
+        conversation.total_tokens = max(conversation.total_tokens, 0) + max(token_count, 0)
 
     db.add(message)
 
@@ -213,10 +199,7 @@ def add_message(
 
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                "The message could not be saved because "
-                "its conversation no longer exists."
-            ),
+            detail=("The message could not be saved because its conversation no longer exists."),
         ) from exc
 
     return message
@@ -237,10 +220,7 @@ def get_conversation_messages(
 
     statement = (
         select(Message)
-        .where(
-            Message.conversation_id
-            == conversation_id
-        )
+        .where(Message.conversation_id == conversation_id)
         .order_by(Message.created_at.asc())
     )
 
@@ -264,16 +244,9 @@ def list_conversations(
     ]
 
     if search and search.strip():
-        filters.append(
-            Conversation.title.ilike(
-                f"%{search.strip()}%"
-            )
-        )
+        filters.append(Conversation.title.ilike(f"%{search.strip()}%"))
 
-    total_statement = (
-        select(func.count(Conversation.id))
-        .where(*filters)
-    )
+    total_statement = select(func.count(Conversation.id)).where(*filters)
 
     total = db.scalar(total_statement) or 0
 
@@ -288,20 +261,14 @@ def list_conversations(
         .limit(page_size)
     )
 
-    conversations = list(
-        db.scalars(statement).all()
-    )
+    conversations = list(db.scalars(statement).all())
 
     return {
         "items": conversations,
         "page": page,
         "page_size": page_size,
         "total": total,
-        "total_pages": (
-            ceil(total / page_size)
-            if total
-            else 0
-        ),
+        "total_pages": (ceil(total / page_size) if total else 0),
     }
 
 

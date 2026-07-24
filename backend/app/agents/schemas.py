@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
 
-class AgentStatus(str, Enum):
+class AgentStatus(StrEnum):
     SUCCESS = "success"
     FAILED = "failed"
     TIMEOUT = "timeout"
@@ -34,7 +34,7 @@ class AgentResponse(BaseModel):
     total_tokens: int = 0
     error: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class AgentDefinition(BaseModel):

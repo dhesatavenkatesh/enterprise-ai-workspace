@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any
 from uuid import uuid4
 
@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, field_validator
 from app.agents.schemas import AgentResponse
 
 
-class OrchestrationMode(str, Enum):
+class OrchestrationMode(StrEnum):
     AUTO = "auto"
     SINGLE = "single"
     MULTI = "multi"
@@ -44,4 +44,4 @@ class OrchestratorResponse(BaseModel):
     final_answer: str
     successful_agents: int = 0
     failed_agents: int = 0
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

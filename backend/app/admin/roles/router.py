@@ -32,7 +32,6 @@ from app.api.dependencies.rbac import require_admin
 from app.database.session import get_db
 from app.models.user import User
 
-
 router = APIRouter(
     prefix="/roles",
     tags=["Sprint 5 - Admin Roles"],
@@ -55,10 +54,7 @@ AdminUser = Annotated[
     "/permissions",
     response_model=AdminPermissionListResponse,
     summary="List available permissions",
-    description=(
-        "Returns all available permissions that can "
-        "be assigned to roles."
-    ),
+    description=("Returns all available permissions that can be assigned to roles."),
 )
 def get_admin_permissions(
     db: DatabaseSession,
@@ -73,10 +69,7 @@ def get_admin_permissions(
     "",
     response_model=AdminRoleListResponse,
     summary="List roles",
-    description=(
-        "Returns all roles with their permission "
-        "and assigned-user counts."
-    ),
+    description=("Returns all roles with their permission and assigned-user counts."),
 )
 def get_admin_roles(
     db: DatabaseSession,
@@ -92,10 +85,7 @@ def get_admin_roles(
     response_model=AdminRoleResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create role",
-    description=(
-        "Creates a new role and optionally assigns "
-        "permissions to it."
-    ),
+    description=("Creates a new role and optionally assigns permissions to it."),
 )
 def create_admin_role(
     payload: AdminRoleCreate,
@@ -115,10 +105,7 @@ def create_admin_role(
     "/{role_id}",
     response_model=AdminRoleResponse,
     summary="Get role details",
-    description=(
-        "Returns one role with its assigned "
-        "permissions and user count."
-    ),
+    description=("Returns one role with its assigned permissions and user count."),
 )
 def get_admin_role(
     role_id: int,
@@ -135,10 +122,7 @@ def get_admin_role(
     "/{role_id}",
     response_model=AdminRoleResponse,
     summary="Update role",
-    description=(
-        "Updates a role name, description, "
-        "or permissions."
-    ),
+    description=("Updates a role name, description, or permissions."),
 )
 def update_admin_role(
     role_id: int,
@@ -160,10 +144,7 @@ def update_admin_role(
     "/{role_id}",
     response_model=AdminRoleResponse,
     summary="Partially update role",
-    description=(
-        "Partially updates a role name, description, "
-        "or permissions."
-    ),
+    description=("Partially updates a role name, description, or permissions."),
 )
 def patch_admin_role(
     role_id: int,
@@ -185,10 +166,7 @@ def patch_admin_role(
     "/{role_id}/permissions",
     response_model=AdminRoleActionResponse,
     summary="Replace role permissions",
-    description=(
-        "Replaces all existing permissions assigned "
-        "to the selected role."
-    ),
+    description=("Replaces all existing permissions assigned to the selected role."),
 )
 def replace_admin_role_permissions(
     role_id: int,
@@ -206,9 +184,7 @@ def replace_admin_role_permissions(
     )
 
     return AdminRoleActionResponse(
-        message=(
-            "Role permissions updated successfully"
-        ),
+        message=("Role permissions updated successfully"),
         role=role,
     )
 
@@ -217,10 +193,7 @@ def replace_admin_role_permissions(
     "/{role_id}",
     response_model=AdminRoleDeleteResponse,
     summary="Delete role",
-    description=(
-        "Deletes a role when it is not assigned "
-        "to any active user."
-    ),
+    description=("Deletes a role when it is not assigned to any active user."),
 )
 def delete_admin_role(
     role_id: int,

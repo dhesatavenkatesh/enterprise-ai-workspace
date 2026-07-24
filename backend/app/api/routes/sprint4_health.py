@@ -7,7 +7,6 @@ from app.api.dependencies.auth import get_current_user
 from app.mcp.bootstrap import register_default_tools
 from app.models.user import User
 
-
 router = APIRouter(
     prefix="/api/sprint4",
     tags=["Sprint 4 Integration"],
@@ -23,10 +22,7 @@ def get_item_name(item: Any) -> str:
     """
     if isinstance(item, dict):
         return str(
-            item.get("name")
-            or item.get("tool_name")
-            or item.get("agent_name")
-            or "Unnamed",
+            item.get("name") or item.get("tool_name") or item.get("agent_name") or "Unnamed",
         )
 
     return str(
@@ -50,33 +46,21 @@ def sprint4_health(
     agents = agent_registry.list()
     tools = tool_registry.list()
 
-    agent_names = [
-        get_item_name(agent)
-        for agent in agents
-    ]
+    agent_names = [get_item_name(agent) for agent in agents]
 
-    tool_names = [
-        get_item_name(tool)
-        for tool in tools
-    ]
+    tool_names = [get_item_name(tool) for tool in tools]
 
     return {
         "status": "healthy",
         "agents": {
             "ready": True,
-            "message": (
-                f"{len(agents)} agent"
-                f"{'s' if len(agents) != 1 else ''} available"
-            ),
+            "message": (f"{len(agents)} agent{'s' if len(agents) != 1 else ''} available"),
             "count": len(agents),
             "names": agent_names,
         },
         "mcp": {
             "ready": True,
-            "message": (
-                f"{len(tools)} MCP tool"
-                f"{'s' if len(tools) != 1 else ''} available"
-            ),
+            "message": (f"{len(tools)} MCP tool{'s' if len(tools) != 1 else ''} available"),
             "count": len(tools),
             "names": tool_names,
         },

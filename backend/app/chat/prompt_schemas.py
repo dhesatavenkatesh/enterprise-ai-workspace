@@ -23,9 +23,7 @@ class PromptTemplateCreate(BaseModel):
 
     content: str = Field(
         min_length=3,
-        examples=[
-            "Review the following Python code and provide improvements:\n\n{code}"
-        ],
+        examples=["Review the following Python code and provide improvements:\n\n{code}"],
     )
 
     category: str | None = Field(

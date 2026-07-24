@@ -5,7 +5,6 @@ from app.models.permission import Permission
 from app.models.role import Role
 from app.models.role_permission import RolePermission
 
-
 PERMISSIONS = [
     {
         "permission_name": "admin.full_access",
@@ -68,44 +67,30 @@ def seed_permissions() -> None:
         for permission_data in PERMISSIONS:
             permission = db.scalar(
                 select(Permission).where(
-                    Permission.permission_name
-                    == permission_data["permission_name"]
+                    Permission.permission_name == permission_data["permission_name"]
                 )
             )
 
             if permission is None:
                 permission = Permission(
-                    permission_name=(
-                        permission_data["permission_name"]
-                    ),
+                    permission_name=(permission_data["permission_name"]),
                     module=permission_data["module"],
-                    description=permission_data[
-                        "description"
-                    ],
+                    description=permission_data["description"],
                 )
 
                 db.add(permission)
 
         db.commit()
 
-        for role_name, permission_names in (
-            ROLE_PERMISSION_MAP.items()
-        ):
-            role = db.scalar(
-                select(Role).where(
-                    Role.name == role_name
-                )
-            )
+        for role_name, permission_names in ROLE_PERMISSION_MAP.items():
+            role = db.scalar(select(Role).where(Role.name == role_name))
 
             if role is None:
                 continue
 
             for permission_name in permission_names:
                 permission = db.scalar(
-                    select(Permission).where(
-                        Permission.permission_name
-                        == permission_name
-                    )
+                    select(Permission).where(Permission.permission_name == permission_name)
                 )
 
                 if permission is None:
@@ -113,10 +98,8 @@ def seed_permissions() -> None:
 
                 mapping = db.scalar(
                     select(RolePermission).where(
-                        RolePermission.role_id
-                        == role.id,
-                        RolePermission.permission_id
-                        == permission.id,
+                        RolePermission.role_id == role.id,
+                        RolePermission.permission_id == permission.id,
                     )
                 )
 
@@ -130,9 +113,7 @@ def seed_permissions() -> None:
 
         db.commit()
 
-        print(
-            "Permissions and role mappings seeded successfully."
-        )
+        print("Permissions and role mappings seeded successfully.")
 
     except Exception:
         db.rollback()

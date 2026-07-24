@@ -17,11 +17,13 @@ from fastapi import (
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
+from app.ai.groq_client import generate_with_groq
 from app.api.dependencies.auth import (
     get_current_user,
 )
 from app.chat.conversation_service import (
     add_message,
+    archive_conversation,
     create_conversation,
     delete_conversation,
     generate_conversation_title,
@@ -29,16 +31,12 @@ from app.chat.conversation_service import (
     get_user_conversation,
     list_conversations,
     rename_conversation,
-    archive_conversation,
     restore_conversation,
 )
 from app.chat.llm_service import (
-    LLMConfigurationError,
     LLMMessage,
-    LLMProviderError,
     LLMService,
     LLMServiceError,
-    LLMTimeoutError,
     create_llm_provider,
 )
 from app.chat.models import MessageRole
@@ -56,7 +54,6 @@ from app.chat.schemas import (
     DeleteConversationResponse,
     RenameConversationRequest,
 )
-from app.ai.groq_client import generate_with_groq
 from app.database.session import get_db
 from app.models.user import User
 from app.rag.rag_service import (
@@ -65,7 +62,6 @@ from app.rag.rag_service import (
     RAGServiceError,
     get_rag_service,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -134,23 +130,15 @@ def build_llm_messages(
         )
 
         if stored_message.role == MessageRole.USER:
-            latest_user_message_index = (
-                len(messages) - 1
-            )
+            latest_user_message_index = len(messages) - 1
 
-    if (
-        latest_user_prompt_override
-        and latest_user_message_index is not None
-    ):
-        messages[latest_user_message_index] = (
-            LLMMessage(
-                role="user",
-                content=latest_user_prompt_override,
-            )
+    if latest_user_prompt_override and latest_user_message_index is not None:
+        messages[latest_user_message_index] = LLMMessage(
+            role="user",
+            content=latest_user_prompt_override,
         )
 
     return messages
-
 
 
 def build_conversation_history(
@@ -190,18 +178,12 @@ def build_conversation_history(
             stored_message.role,
         )
 
-        role_name = (
-            "User"
-            if str(role_value).lower() == "user"
-            else "Assistant"
-        )
+        role_name = "User" if str(role_value).lower() == "user" else "Assistant"
 
         content = (stored_message.content or "").strip()
 
         if content:
-            history_lines.append(
-                f"{role_name}: {content}"
-            )
+            history_lines.append(f"{role_name}: {content}")
 
     return "\n".join(history_lines)
 
@@ -245,9 +227,7 @@ def get_or_create_conversation(
             user_id,
         )
 
-    title = generate_conversation_title(
-        request_data.prompt
-    )
+    title = generate_conversation_title(request_data.prompt)
 
     return create_conversation(
         db,
@@ -315,9 +295,7 @@ def raise_prompt_template_http_error(
 def chat(
     request_data: ChatRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(
-        get_current_user
-    ),
+    current_user: User = Depends(get_current_user),
 ) -> ChatResponse:
     """
     Create or continue a conversation, save the user message,
@@ -341,18 +319,13 @@ def chat(
 
         db.flush()
 
-        rendered_template_prompt = (
-            prepare_prompt_for_llm(
-                db=db,
-                user_id=current_user.id,
-                request_data=request_data,
-            )
+        rendered_template_prompt = prepare_prompt_for_llm(
+            db=db,
+            user_id=current_user.id,
+            request_data=request_data,
         )
 
-        base_rag_query = (
-            rendered_template_prompt
-            or request_data.prompt
-        )
+        base_rag_query = rendered_template_prompt or request_data.prompt
 
         conversation_history = build_conversation_history(
             db=db,
@@ -373,16 +346,10 @@ def chat(
         rag_result = rag_service.answer_question(
             query=rag_query,
             top_k=request_data.top_k,
-            document_id=(
-                str(request_data.document_id)
-                if request_data.document_id
-                else None
-            ),
+            document_id=(str(request_data.document_id) if request_data.document_id else None),
             department=request_data.department,
             document_type=request_data.document_type,
-            minimum_similarity=(
-                request_data.minimum_similarity
-            ),
+            minimum_similarity=(request_data.minimum_similarity),
             user_id=current_user.id,
         )
 
@@ -390,11 +357,14 @@ def chat(
 
         # Keep citations visible in the existing ChatMessage UI even
         # before a dedicated citation JSON column/component is added.
-        citations = getattr(
-            rag_result,
-            "citations",
-            [],
-        ) or []
+        citations = (
+            getattr(
+                rag_result,
+                "citations",
+                [],
+            )
+            or []
+        )
 
         if citations:
             source_lines: list[str] = []
@@ -403,15 +373,19 @@ def chat(
                 citations,
                 start=1,
             ):
-                title = getattr(
-                    citation,
-                    "document_title",
-                    None,
-                ) or getattr(
-                    citation,
-                    "file_name",
-                    None,
-                ) or "Enterprise document"
+                title = (
+                    getattr(
+                        citation,
+                        "document_title",
+                        None,
+                    )
+                    or getattr(
+                        citation,
+                        "file_name",
+                        None,
+                    )
+                    or "Enterprise document"
+                )
 
                 page_number = getattr(
                     citation,
@@ -419,20 +393,11 @@ def chat(
                     None,
                 )
 
-                page_text = (
-                    f" (page {page_number})"
-                    if page_number
-                    else ""
-                )
+                page_text = f" (page {page_number})" if page_number else ""
 
-                source_lines.append(
-                    f"[{index}] {title}{page_text}"
-                )
+                source_lines.append(f"[{index}] {title}{page_text}")
 
-            answer_text = (
-                f"{answer_text}\n\nSources:\n"
-                + "\n".join(source_lines)
-            )
+            answer_text = f"{answer_text}\n\nSources:\n" + "\n".join(source_lines)
 
         assistant_message = add_message(
             db=db,
@@ -443,10 +408,7 @@ def chat(
             prompt_tokens=0,
             completion_tokens=0,
             provider=request_data.provider or "rag",
-            model_name=(
-                request_data.model_name
-                or "enterprise-rag"
-            ),
+            model_name=(request_data.model_name or "enterprise-rag"),
         )
 
         db.commit()
@@ -459,9 +421,7 @@ def chat(
             conversation_title=conversation.title,
             user_message=user_message,
             assistant_message=assistant_message,
-            total_tokens=(
-                assistant_message.token_count
-            ),
+            total_tokens=(assistant_message.token_count),
         )
 
     except (
@@ -483,9 +443,7 @@ def chat(
         RAGServiceError,
     ) as exc:
         db.rollback()
-        logger.exception(
-            "Enterprise RAG chat generation failed"
-        )
+        logger.exception("Enterprise RAG chat generation failed")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=str(exc),
@@ -497,16 +455,10 @@ def chat(
 
     except Exception as exc:
         db.rollback()
-        logger.exception(
-            "Unexpected enterprise chat error"
-        )
+        logger.exception("Unexpected enterprise chat error")
         raise HTTPException(
-            status_code=(
-                status.HTTP_500_INTERNAL_SERVER_ERROR
-            ),
-            detail=(
-                f"{type(exc).__name__}: {str(exc)}"
-            ),
+            status_code=(status.HTTP_500_INTERNAL_SERVER_ERROR),
+            detail=(f"{type(exc).__name__}: {str(exc)}"),
         ) from exc
 
 
@@ -515,9 +467,7 @@ async def stream_chat(
     request_data: ChatRequest,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(
-        get_current_user
-    ),
+    current_user: User = Depends(get_current_user),
 ) -> StreamingResponse:
     """
     Stream an AI response using Server-Sent Events.
@@ -542,24 +492,18 @@ async def stream_chat(
 
         db.flush()
 
-        rendered_template_prompt = (
-            prepare_prompt_for_llm(
-                db=db,
-                user_id=current_user.id,
-                request_data=request_data,
-            )
+        rendered_template_prompt = prepare_prompt_for_llm(
+            db=db,
+            user_id=current_user.id,
+            request_data=request_data,
         )
 
         llm_messages = build_llm_messages(
             db=db,
             conversation_id=conversation.id,
             user_id=current_user.id,
-            system_prompt=(
-                request_data.system_prompt
-            ),
-            latest_user_prompt_override=(
-                rendered_template_prompt
-            ),
+            system_prompt=(request_data.system_prompt),
+            latest_user_prompt_override=(rendered_template_prompt),
         )
 
         llm_service = create_service(
@@ -593,18 +537,11 @@ async def stream_chat(
     except Exception as exc:
         db.rollback()
 
-        logger.exception(
-            "Unable to start streaming chat"
-        )
+        logger.exception("Unable to start streaming chat")
 
         raise HTTPException(
-            status_code=(
-                status.HTTP_500_INTERNAL_SERVER_ERROR
-            ),
-            detail=(
-                f"Unable to start streaming: "
-                f"{type(exc).__name__}: {str(exc)}"
-            ),
+            status_code=(status.HTTP_500_INTERNAL_SERVER_ERROR),
+            detail=(f"Unable to start streaming: {type(exc).__name__}: {str(exc)}"),
         ) from exc
 
     async def event_generator() -> AsyncIterator[str]:
@@ -613,45 +550,26 @@ async def stream_chat(
         try:
             start_event = {
                 "type": "start",
-                "conversation_id": str(
-                    conversation.id
-                ),
-                "provider": (
-                    llm_service.provider.provider_name
-                ),
-                "model": (
-                    llm_service.provider.model
-                ),
+                "conversation_id": str(conversation.id),
+                "provider": (llm_service.provider.provider_name),
+                "model": (llm_service.provider.model),
                 "template_id": (
-                    str(request_data.template_id)
-                    if request_data.template_id
-                    else None
+                    str(request_data.template_id) if request_data.template_id else None
                 ),
             }
 
-            yield (
-                "event: start\n"
-                f"data: {json.dumps(start_event)}\n\n"
-            )
+            yield (f"event: start\ndata: {json.dumps(start_event)}\n\n")
 
-            yield (
-                "event: typing\n"
-                'data: {"typing": true}\n\n'
-            )
+            yield ('event: typing\ndata: {"typing": true}\n\n')
 
             async for chunk in llm_service.stream(
                 messages=llm_messages,
-                temperature=(
-                    request_data.temperature
-                ),
-                max_tokens=(
-                    request_data.max_tokens
-                ),
+                temperature=(request_data.temperature),
+                max_tokens=(request_data.max_tokens),
             ):
                 if await request.is_disconnected():
                     logger.info(
-                        "Client disconnected from "
-                        "conversation %s",
+                        "Client disconnected from conversation %s",
                         conversation.id,
                     )
                     return
@@ -663,10 +581,7 @@ async def stream_chat(
                     "content": chunk,
                 }
 
-                yield (
-                    "event: token\n"
-                    f"data: {json.dumps(token_event)}\n\n"
-                )
+                yield (f"event: token\ndata: {json.dumps(token_event)}\n\n")
 
                 await asyncio.sleep(0)
 
@@ -676,35 +591,21 @@ async def stream_chat(
                     conversation_id=conversation.id,
                     role=MessageRole.ASSISTANT,
                     content=complete_response,
-                    provider=(
-                        llm_service
-                        .provider
-                        .provider_name
-                    ),
-                    model_name=(
-                        llm_service.provider.model
-                    ),
+                    provider=(llm_service.provider.provider_name),
+                    model_name=(llm_service.provider.model),
                 )
 
                 db.commit()
 
-            yield (
-                "event: typing\n"
-                'data: {"typing": false}\n\n'
-            )
+            yield ('event: typing\ndata: {"typing": false}\n\n')
 
             complete_event = {
                 "type": "complete",
-                "conversation_id": str(
-                    conversation.id
-                ),
+                "conversation_id": str(conversation.id),
                 "response": complete_response,
             }
 
-            yield (
-                "event: complete\n"
-                f"data: {json.dumps(complete_event)}\n\n"
-            )
+            yield (f"event: complete\ndata: {json.dumps(complete_event)}\n\n")
 
         except asyncio.CancelledError:
             db.rollback()
@@ -718,30 +619,19 @@ async def stream_chat(
                 "message": str(exc),
             }
 
-            yield (
-                "event: error\n"
-                f"data: {json.dumps(error_event)}\n\n"
-            )
+            yield (f"event: error\ndata: {json.dumps(error_event)}\n\n")
 
         except Exception as exc:
             db.rollback()
 
-            logger.exception(
-                "Unexpected streaming error"
-            )
+            logger.exception("Unexpected streaming error")
 
             error_event = {
                 "type": "error",
-                "message": (
-                    f"The AI response stream failed: "
-                    f"{type(exc).__name__}: {str(exc)}"
-                ),
+                "message": (f"The AI response stream failed: {type(exc).__name__}: {str(exc)}"),
             }
 
-            yield (
-                "event: error\n"
-                f"data: {json.dumps(error_event)}\n\n"
-            )
+            yield (f"event: error\ndata: {json.dumps(error_event)}\n\n")
 
     return StreamingResponse(
         event_generator(),
@@ -781,9 +671,7 @@ def chat_history(
         default=False,
     ),
     db: Session = Depends(get_db),
-    current_user: User = Depends(
-        get_current_user
-    ),
+    current_user: User = Depends(get_current_user),
 ) -> ConversationHistoryResponse:
     """
     Return paginated conversation history.
@@ -798,9 +686,7 @@ def chat_history(
         archived=archived,
     )
 
-    return ConversationHistoryResponse(
-        **result
-    )
+    return ConversationHistoryResponse(**result)
 
 
 @router.get(
@@ -810,9 +696,7 @@ def chat_history(
 def get_conversation(
     conversation_id: UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(
-        get_current_user
-    ),
+    current_user: User = Depends(get_current_user),
 ) -> ConversationDetailResponse:
     """
     Return one conversation and its messages.
@@ -825,9 +709,7 @@ def get_conversation(
         include_messages=True,
     )
 
-    return ConversationDetailResponse.model_validate(
-        conversation
-    )
+    return ConversationDetailResponse.model_validate(conversation)
 
 
 @router.delete(
@@ -837,9 +719,7 @@ def get_conversation(
 def remove_conversation(
     conversation_id: UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(
-        get_current_user
-    ),
+    current_user: User = Depends(get_current_user),
 ) -> DeleteConversationResponse:
     """
     Delete one conversation.
@@ -867,9 +747,7 @@ def update_conversation_title(
     conversation_id: UUID,
     request_data: RenameConversationRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(
-        get_current_user
-    ),
+    current_user: User = Depends(get_current_user),
 ) -> ConversationSummaryResponse:
     """
     Rename one conversation.
@@ -885,9 +763,8 @@ def update_conversation_title(
     db.commit()
     db.refresh(conversation)
 
-    return ConversationSummaryResponse.model_validate(
-        conversation
-    )
+    return ConversationSummaryResponse.model_validate(conversation)
+
 
 @router.put(
     "/{conversation_id}/archive",
@@ -896,9 +773,7 @@ def update_conversation_title(
 def archive_user_conversation(
     conversation_id: UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(
-        get_current_user
-    ),
+    current_user: User = Depends(get_current_user),
 ) -> ConversationSummaryResponse:
     conversation = archive_conversation(
         db=db,
@@ -909,9 +784,8 @@ def archive_user_conversation(
     db.commit()
     db.refresh(conversation)
 
-    return ConversationSummaryResponse.model_validate(
-        conversation
-    )
+    return ConversationSummaryResponse.model_validate(conversation)
+
 
 @router.put(
     "/{conversation_id}/restore",
@@ -920,9 +794,7 @@ def archive_user_conversation(
 def restore_user_conversation(
     conversation_id: UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(
-        get_current_user
-    ),
+    current_user: User = Depends(get_current_user),
 ) -> ConversationSummaryResponse:
     conversation = restore_conversation(
         db=db,
@@ -933,6 +805,4 @@ def restore_user_conversation(
     db.commit()
     db.refresh(conversation)
 
-    return ConversationSummaryResponse.model_validate(
-        conversation
-    )
+    return ConversationSummaryResponse.model_validate(conversation)

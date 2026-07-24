@@ -19,7 +19,6 @@ from app.chat.analytics_service import (
 from app.database.session import get_db
 from app.models.user import User
 
-
 router = APIRouter(
     prefix="/api/chat/analytics",
     tags=["Chat Analytics"],
@@ -32,9 +31,7 @@ router = APIRouter(
 )
 def analytics_summary(
     db: Session = Depends(get_db),
-    current_user: User = Depends(
-        get_current_user
-    ),
+    current_user: User = Depends(get_current_user),
 ) -> ChatAnalyticsSummaryResponse:
     """
     Return overall chat statistics for the current user.
@@ -57,9 +54,7 @@ def analytics_usage(
         le=365,
     ),
     db: Session = Depends(get_db),
-    current_user: User = Depends(
-        get_current_user
-    ),
+    current_user: User = Depends(get_current_user),
 ) -> ChatUsageAnalyticsResponse:
     """
     Return provider, model and daily usage analytics.

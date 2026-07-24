@@ -3,7 +3,7 @@ from __future__ import annotations
 import ast
 import operator
 from abc import ABC, abstractmethod
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 
@@ -42,9 +42,7 @@ class EchoTool(BaseMCPTool):
         message = arguments.get("message")
 
         if not isinstance(message, str) or not message.strip():
-            raise ValueError(
-                "The 'message' argument must be a non-empty string."
-            )
+            raise ValueError("The 'message' argument must be a non-empty string.")
 
         return {
             "message": message,
@@ -63,7 +61,7 @@ class CurrentTimeTool(BaseMCPTool):
         self,
         arguments: dict[str, Any],
     ) -> dict[str, str]:
-        current_time = datetime.now(timezone.utc)
+        current_time = datetime.now(UTC)
 
         return {
             "timezone": "UTC",
@@ -73,10 +71,7 @@ class CurrentTimeTool(BaseMCPTool):
 
 class CalculatorTool(BaseMCPTool):
     name = "calculator"
-    description = (
-        "Performs arithmetic using either an expression or "
-        "two numbers and an operation."
-    )
+    description = "Performs arithmetic using either an expression or two numbers and an operation."
     input_schema = {
         "type": "object",
         "properties": {
@@ -136,14 +131,10 @@ class CalculatorTool(BaseMCPTool):
         operation_name = arguments.get("operation")
 
         if not isinstance(a, (int, float)):
-            raise ValueError(
-                "The 'a' argument must be a number."
-            )
+            raise ValueError("The 'a' argument must be a number.")
 
         if not isinstance(b, (int, float)):
-            raise ValueError(
-                "The 'b' argument must be a number."
-            )
+            raise ValueError("The 'b' argument must be a number.")
 
         operations = {
             "add": operator.add,
@@ -154,15 +145,10 @@ class CalculatorTool(BaseMCPTool):
             "modulo": operator.mod,
         }
 
-        selected_operation = operations.get(
-            str(operation_name).lower()
-        )
+        selected_operation = operations.get(str(operation_name).lower())
 
         if selected_operation is None:
-            raise ValueError(
-                "Operation must be add, subtract, multiply, "
-                "divide, power or modulo."
-            )
+            raise ValueError("Operation must be add, subtract, multiply, divide, power or modulo.")
 
         if operation_name in {"divide", "modulo"} and b == 0:
             raise ValueError("Division by zero is not allowed.")
@@ -181,9 +167,7 @@ class CalculatorTool(BaseMCPTool):
                 mode="eval",
             )
         except SyntaxError as exc:
-            raise ValueError(
-                "Invalid mathematical expression."
-            ) from exc
+            raise ValueError("Invalid mathematical expression.") from exc
 
         return self._evaluate_node(parsed.body)
 
@@ -195,45 +179,29 @@ class CalculatorTool(BaseMCPTool):
             if isinstance(node.value, (int, float)):
                 return node.value
 
-            raise ValueError(
-                "Only numeric constants are allowed."
-            )
+            raise ValueError("Only numeric constants are allowed.")
 
         if isinstance(node, ast.BinOp):
-            operation = self._binary_operators.get(
-                type(node.op)
-            )
+            operation = self._binary_operators.get(type(node.op))
 
             if operation is None:
-                raise ValueError(
-                    "The expression contains an unsupported operator."
-                )
+                raise ValueError("The expression contains an unsupported operator.")
 
             left_value = self._evaluate_node(node.left)
             right_value = self._evaluate_node(node.right)
 
             if isinstance(node.op, (ast.Div, ast.FloorDiv, ast.Mod)):
                 if right_value == 0:
-                    raise ValueError(
-                        "Division by zero is not allowed."
-                    )
+                    raise ValueError("Division by zero is not allowed.")
 
             return operation(left_value, right_value)
 
         if isinstance(node, ast.UnaryOp):
-            operation = self._unary_operators.get(
-                type(node.op)
-            )
+            operation = self._unary_operators.get(type(node.op))
 
             if operation is None:
-                raise ValueError(
-                    "The expression contains an unsupported unary operator."
-                )
+                raise ValueError("The expression contains an unsupported unary operator.")
 
-            return operation(
-                self._evaluate_node(node.operand)
-            )
+            return operation(self._evaluate_node(node.operand))
 
-        raise ValueError(
-            "The expression contains unsupported syntax."
-        )
+        raise ValueError("The expression contains unsupported syntax.")

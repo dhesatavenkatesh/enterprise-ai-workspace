@@ -8,16 +8,13 @@ from starlette import status
 
 from app.core.exceptions import PermissionDeniedError
 
-
 logger = logging.getLogger(__name__)
 
 
 def register_exception_handlers(
     app: FastAPI,
 ) -> None:
-    @app.exception_handler(
-        PermissionDeniedError
-    )
+    @app.exception_handler(PermissionDeniedError)
     async def permission_denied_handler(
         request: Request,
         exc: PermissionDeniedError,
@@ -32,9 +29,7 @@ def register_exception_handlers(
             },
         )
 
-    @app.exception_handler(
-        RequestValidationError
-    )
+    @app.exception_handler(RequestValidationError)
     async def validation_error_handler(
         request: Request,
         exc: RequestValidationError,
@@ -49,11 +44,7 @@ def register_exception_handlers(
                 [],
             )
 
-            field = (
-                str(location[-1])
-                if location
-                else "unknown"
-            )
+            field = str(location[-1]) if location else "unknown"
 
             errors.append(
                 {
@@ -74,9 +65,7 @@ def register_exception_handlers(
             },
         )
 
-    @app.exception_handler(
-        SQLAlchemyError
-    )
+    @app.exception_handler(SQLAlchemyError)
     async def database_error_handler(
         request: Request,
         exc: SQLAlchemyError,
@@ -92,15 +81,11 @@ def register_exception_handlers(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={
                 "success": False,
-                "message": (
-                    "A database error occurred"
-                ),
+                "message": ("A database error occurred"),
             },
         )
 
-    @app.exception_handler(
-        HTTPException
-    )
+    @app.exception_handler(HTTPException)
     async def http_exception_handler(
         request: Request,
         exc: HTTPException,
@@ -125,9 +110,7 @@ def register_exception_handlers(
             headers=exc.headers,
         )
 
-    @app.exception_handler(
-        Exception
-    )
+    @app.exception_handler(Exception)
     async def unexpected_error_handler(
         request: Request,
         exc: Exception,
@@ -143,8 +126,6 @@ def register_exception_handlers(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={
                 "success": False,
-                "message": (
-                    "An unexpected error occurred"
-                ),
+                "message": ("An unexpected error occurred"),
             },
         )

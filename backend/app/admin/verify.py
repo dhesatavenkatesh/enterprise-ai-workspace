@@ -7,7 +7,6 @@ import app.models  # noqa: F401
 from app.admin.router import router as admin_router
 from app.main import app as fastapi_app
 
-
 EXPECTED_ADMIN_ROUTES = {
     "/api/admin/users",
     "/api/admin/users/{user_id}",
@@ -32,8 +31,7 @@ def verify_fastapi_instance(
 ) -> None:
     if not isinstance(application, FastAPI):
         raise TypeError(
-            "fastapi_app is not a FastAPI instance. "
-            f"Received: {type(application).__name__}"
+            f"fastapi_app is not a FastAPI instance. Received: {type(application).__name__}"
         )
 
     print("✓ FastAPI application instance loaded successfully")
@@ -48,8 +46,7 @@ def verify_sqlalchemy_models() -> None:
 def verify_admin_router_prefix() -> None:
     if admin_router.prefix != "/api/admin":
         raise RuntimeError(
-            "Admin router prefix must be '/api/admin'. "
-            f"Current prefix: {admin_router.prefix!r}"
+            f"Admin router prefix must be '/api/admin'. Current prefix: {admin_router.prefix!r}"
         )
 
     print("✓ Admin router prefix is correct")
@@ -66,9 +63,7 @@ def get_openapi_paths(
     paths = schema.get("paths", {})
 
     if not isinstance(paths, dict):
-        raise RuntimeError(
-            "FastAPI OpenAPI schema does not contain a valid paths object."
-        )
+        raise RuntimeError("FastAPI OpenAPI schema does not contain a valid paths object.")
 
     return paths
 
@@ -78,11 +73,7 @@ def get_admin_paths(
 ) -> dict[str, Any]:
     paths = get_openapi_paths(application)
 
-    return {
-        path: operations
-        for path, operations in paths.items()
-        if path.startswith("/api/admin")
-    }
+    return {path: operations for path, operations in paths.items() if path.startswith("/api/admin")}
 
 
 def verify_duplicate_prefixes(
@@ -90,11 +81,7 @@ def verify_duplicate_prefixes(
 ) -> None:
     paths = get_openapi_paths(application)
 
-    invalid_paths = [
-        path
-        for path in paths
-        if "/api/admin/api/admin" in path
-    ]
+    invalid_paths = [path for path in paths if "/api/admin/api/admin" in path]
 
     if invalid_paths:
         print("✗ Duplicate admin prefixes found:")
@@ -102,9 +89,7 @@ def verify_duplicate_prefixes(
         for path in sorted(invalid_paths):
             print(f"  - {path}")
 
-        raise RuntimeError(
-            "Duplicate '/api/admin' prefix detected"
-        )
+        raise RuntimeError("Duplicate '/api/admin' prefix detected")
 
     print("✓ No duplicate /api/admin prefixes found")
 
@@ -116,10 +101,7 @@ def verify_admin_routes(
 
     registered_paths = set(admin_paths)
 
-    missing_paths = (
-        EXPECTED_ADMIN_ROUTES
-        - registered_paths
-    )
+    missing_paths = EXPECTED_ADMIN_ROUTES - registered_paths
 
     if missing_paths:
         print("✗ Missing admin routes:")
@@ -135,14 +117,9 @@ def verify_admin_routes(
         else:
             print("  No admin routes are present in OpenAPI.")
 
-        raise RuntimeError(
-            "Sprint 5 admin route verification failed"
-        )
+        raise RuntimeError("Sprint 5 admin route verification failed")
 
-    print(
-        "✓ All expected Sprint 5 admin routes "
-        "are registered"
-    )
+    print("✓ All expected Sprint 5 admin routes are registered")
 
 
 def print_admin_routes(
@@ -193,10 +170,7 @@ def main() -> None:
     verify_admin_routes(fastapi_app)
     print_admin_routes(fastapi_app)
 
-    print(
-        "\n✓ Sprint 5 Admin module verification "
-        "completed successfully\n"
-    )
+    print("\n✓ Sprint 5 Admin module verification completed successfully\n")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
@@ -14,6 +15,9 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
+
+if TYPE_CHECKING:
+    from app.models.document import Document
 
 
 class DocumentChunk(Base):
@@ -104,7 +108,7 @@ class DocumentChunk(Base):
         default=False,
     )
 
-    document: Mapped["Document"] = relationship(
+    document: Mapped[Document] = relationship(
         "Document",
         back_populates="chunks",
     )

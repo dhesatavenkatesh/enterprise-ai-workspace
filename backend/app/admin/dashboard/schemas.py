@@ -44,9 +44,7 @@ class AdminDashboardResponse(BaseModel):
     roles: AdminDashboardRoleStats
     audit: AdminDashboardAuditStats
 
-    recent_audit_logs: list[
-        AdminDashboardRecentAuditItem
-    ] = Field(
+    recent_audit_logs: list[AdminDashboardRecentAuditItem] = Field(
         default_factory=list,
     )
 

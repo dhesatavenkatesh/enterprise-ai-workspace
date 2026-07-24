@@ -22,14 +22,14 @@ class AgentExecutor:
         request: AgentRequest,
         agent_name: str | None = None,
     ) -> AgentResponse:
-        agent = self.factory.create(agent_name) if agent_name else self.factory.select(request.message)
+        agent = (
+            self.factory.create(agent_name) if agent_name else self.factory.select(request.message)
+        )
         last_error: Exception | None = None
         for attempt in range(1, self.max_retries + 1):
             try:
-                return await asyncio.wait_for(
-                    agent.execute(request), timeout=self.timeout_seconds
-                )
-            except asyncio.TimeoutError:
+                return await asyncio.wait_for(agent.execute(request), timeout=self.timeout_seconds)
+            except TimeoutError:
                 last_error = TimeoutError(
                     f"Agent '{agent.name}' timed out after {self.timeout_seconds} seconds."
                 )
@@ -50,6 +50,4 @@ class AgentExecutor:
         request: AgentRequest,
         agent_names: list[str],
     ) -> list[AgentResponse]:
-        return await asyncio.gather(
-            *(self.execute(request, name) for name in agent_names)
-        )
+        return await asyncio.gather(*(self.execute(request, name) for name in agent_names))

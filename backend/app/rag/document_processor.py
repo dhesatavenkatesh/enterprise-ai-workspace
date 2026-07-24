@@ -9,7 +9,6 @@ from typing import Any
 from docx import Document as DocxDocument
 from pypdf import PdfReader
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -112,9 +111,7 @@ class DocumentProcessor:
         self.chunk_overlap = self._validate_chunk_overlap(chunk_overlap)
 
         if self.chunk_overlap >= self.chunk_size:
-            raise ValueError(
-                "chunk_overlap must be smaller than chunk_size."
-            )
+            raise ValueError("chunk_overlap must be smaller than chunk_size.")
 
     def process_document(
         self,
@@ -141,21 +138,15 @@ class DocumentProcessor:
         path = Path(file_path).resolve()
 
         if not path.exists():
-            raise DocumentProcessingError(
-                f"Document file was not found: {path}"
-            )
+            raise DocumentProcessingError(f"Document file was not found: {path}")
 
         if not path.is_file():
-            raise DocumentProcessingError(
-                f"Document path is not a file: {path}"
-            )
+            raise DocumentProcessingError(f"Document path is not a file: {path}")
 
         extension = path.suffix.lower()
 
         if extension not in SUPPORTED_EXTENSIONS:
-            raise UnsupportedDocumentTypeError(
-                f"Unsupported document type: {extension}"
-            )
+            raise UnsupportedDocumentTypeError(f"Unsupported document type: {extension}")
 
         resolved_file_name = file_name or path.name
         base_metadata = metadata.copy() if metadata else {}
@@ -188,9 +179,7 @@ class DocumentProcessor:
             )
 
         if not cleaned_pages:
-            raise EmptyDocumentError(
-                f"No readable text was found in {resolved_file_name}."
-            )
+            raise EmptyDocumentError(f"No readable text was found in {resolved_file_name}.")
 
         full_text = self._combine_pages(cleaned_pages)
 
@@ -203,9 +192,7 @@ class DocumentProcessor:
         )
 
         if not chunks:
-            raise EmptyDocumentError(
-                f"No chunks were generated for {resolved_file_name}."
-            )
+            raise EmptyDocumentError(f"No chunks were generated for {resolved_file_name}.")
 
         processed_document = ProcessedDocument(
             document_id=str(document_id),
@@ -248,9 +235,7 @@ class DocumentProcessor:
         extractor = extractors.get(extension)
 
         if extractor is None:
-            raise UnsupportedDocumentTypeError(
-                f"Unsupported file extension: {extension}"
-            )
+            raise UnsupportedDocumentTypeError(f"Unsupported file extension: {extension}")
 
         try:
             return extractor(path)
@@ -430,9 +415,7 @@ class DocumentProcessor:
             try:
                 reader.decrypt("")
             except Exception as exc:
-                raise DocumentProcessingError(
-                    "Encrypted PDF files are not supported."
-                ) from exc
+                raise DocumentProcessingError("Encrypted PDF files are not supported.") from exc
 
         for page_index, page in enumerate(
             reader.pages,
@@ -473,16 +456,10 @@ class DocumentProcessor:
 
         for table in document.tables:
             for row in table.rows:
-                row_values = [
-                    cell.text.strip()
-                    for cell in row.cells
-                    if cell.text.strip()
-                ]
+                row_values = [cell.text.strip() for cell in row.cells if cell.text.strip()]
 
                 if row_values:
-                    content_blocks.append(
-                        " | ".join(row_values)
-                    )
+                    content_blocks.append(" | ".join(row_values))
 
         combined_text = "\n\n".join(content_blocks)
 
@@ -519,9 +496,7 @@ class DocumentProcessor:
                 last_error = exc
 
         if content is None:
-            raise DocumentProcessingError(
-                f"Unable to decode {file_path.name}: {last_error}"
-            )
+            raise DocumentProcessingError(f"Unable to decode {file_path.name}: {last_error}")
 
         return [
             ExtractedPage(
@@ -561,10 +536,7 @@ class DocumentProcessor:
     @staticmethod
     def _validate_chunk_size(chunk_size: int) -> int:
         if chunk_size not in SUPPORTED_CHUNK_SIZES:
-            raise ValueError(
-                "chunk_size must be one of: "
-                f"{sorted(SUPPORTED_CHUNK_SIZES)}"
-            )
+            raise ValueError(f"chunk_size must be one of: {sorted(SUPPORTED_CHUNK_SIZES)}")
 
         return chunk_size
 
@@ -573,10 +545,7 @@ class DocumentProcessor:
         chunk_overlap: int,
     ) -> int:
         if chunk_overlap not in SUPPORTED_CHUNK_OVERLAPS:
-            raise ValueError(
-                "chunk_overlap must be one of: "
-                f"{sorted(SUPPORTED_CHUNK_OVERLAPS)}"
-            )
+            raise ValueError(f"chunk_overlap must be one of: {sorted(SUPPORTED_CHUNK_OVERLAPS)}")
 
         return chunk_overlap
 

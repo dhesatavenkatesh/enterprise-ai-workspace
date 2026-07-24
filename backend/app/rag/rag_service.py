@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import text
@@ -207,7 +208,7 @@ class RAGService:
             document.embedding_model = self.embedding_service.model_name
             document.vector_dimension = self.embedding_service.embedding_dimension
             document.vector_collection = self.vector_store.collection_name
-            document.updated_at = datetime.now(timezone.utc)
+            document.updated_at = datetime.now(UTC)
             self.db.commit()
             self.db.refresh(document)
 
@@ -218,7 +219,7 @@ class RAGService:
                 vectors_stored=vectors_stored,
                 embedding_model=self.embedding_service.model_name,
                 embedding_dimension=self.embedding_service.embedding_dimension,
-                processed_at=datetime.now(timezone.utc).isoformat(),
+                processed_at=datetime.now(UTC).isoformat(),
             )
 
         except (DocumentNotFoundError, DocumentFileNotFoundError, DocumentIndexingError):
@@ -252,7 +253,7 @@ class RAGService:
         if not 0 <= minimum_similarity <= 1:
             raise ValueError("minimum_similarity must be between 0 and 1.")
 
-        started_at = datetime.now(timezone.utc)
+        started_at = datetime.now(UTC)
         try:
             results = self.vector_store.search(
                 query=query.strip(),
@@ -263,7 +264,7 @@ class RAGService:
                 minimum_similarity=minimum_similarity,
             )
             citations = self._build_citations(results)
-            elapsed_ms = (datetime.now(timezone.utc) - started_at).total_seconds() * 1000
+            elapsed_ms = (datetime.now(UTC) - started_at).total_seconds() * 1000
             self._save_search_log(
                 query=query.strip(),
                 user_id=user_id,
@@ -346,7 +347,7 @@ class RAGService:
                 document.embedding_model = None
                 document.vector_dimension = None
                 document.vector_collection = None
-                document.updated_at = datetime.now(timezone.utc)
+                document.updated_at = datetime.now(UTC)
                 self.db.commit()
             return {
                 "document_id": normalized_id,
@@ -377,9 +378,10 @@ class RAGService:
         }
 
     def get_analytics(self) -> dict[str, Any]:
-        document_stats = self.db.execute(
-            text(
-                """
+        document_stats = (
+            self.db.execute(
+                text(
+                    """
                 SELECT
                     COUNT(*) AS total_documents,
                     COUNT(*) FILTER (WHERE status = 'completed') AS indexed_documents,
@@ -390,8 +392,11 @@ class RAGService:
                 WHERE deleted_at IS NULL
                   AND is_deleted = FALSE
                 """
+                )
             )
-        ).mappings().one()
+            .mappings()
+            .one()
+        )
 
         return {
             "documents": {
@@ -424,7 +429,7 @@ class RAGService:
     def _update_document_status(self, *, document: Document, status: str, progress: int) -> None:
         document.status = status
         document.processing_progress = max(0, min(100, int(progress)))
-        document.updated_at = datetime.now(timezone.utc)
+        document.updated_at = datetime.now(UTC)
         self.db.commit()
         self.db.refresh(document)
 
@@ -466,14 +471,10 @@ class RAGService:
                 metadata = dict(embedded.get("metadata") or {})
                 vector_id = str(embedded.get("id") or "").strip()
                 if not vector_id:
-                    raise DocumentIndexingError(
-                        f"Missing vector ID for chunk {chunk.chunk_index}."
-                    )
+                    raise DocumentIndexingError(f"Missing vector ID for chunk {chunk.chunk_index}.")
 
                 page_number = self._optional_int(metadata.get("page_number"))
-                processing_time_ms = self._optional_float(
-                    metadata.get("processing_time_ms")
-                )
+                processing_time_ms = self._optional_float(metadata.get("processing_time_ms"))
                 section = metadata.get("section")
                 if section is not None:
                     section = str(section)
@@ -629,25 +630,25 @@ class RAGService:
 
     def _get_search_stats(self) -> dict[str, Any]:
         try:
-            row = self.db.execute(
-                text(
-                    """
+            row = (
+                self.db.execute(
+                    text(
+                        """
                     SELECT
                         COUNT(*) AS total_searches,
                         COALESCE(AVG(search_time_ms), 0) AS average_search_time_ms,
                         COALESCE(AVG(result_count), 0) AS average_result_count
                     FROM rag_search_logs
                     """
+                    )
                 )
-            ).mappings().one()
+                .mappings()
+                .one()
+            )
             return {
                 "total": int(row["total_searches"] or 0),
-                "average_search_time_ms": round(
-                    float(row["average_search_time_ms"] or 0), 2
-                ),
-                "average_result_count": round(
-                    float(row["average_result_count"] or 0), 2
-                ),
+                "average_search_time_ms": round(float(row["average_search_time_ms"] or 0), 2),
+                "average_result_count": round(float(row["average_result_count"] or 0), 2),
             }
         except Exception:
             self.db.rollback()
@@ -738,9 +739,7 @@ class RAGService:
         for citation in citations[:3]:
             content = citation.content.strip()
             if content:
-                answer_parts.append(
-                    f"{content} [Source {citation.citation_number}]"
-                )
+                answer_parts.append(f"{content} [Source {citation.citation_number}]")
         if not answer_parts:
             return "I could not find enough information in the enterprise knowledge base."
         return "\n\n".join(answer_parts)

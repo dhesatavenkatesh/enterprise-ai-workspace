@@ -17,24 +17,62 @@ class AgentRouter:
 
     KEYWORDS: dict[str, tuple[str, ...]] = {
         "hr_agent": (
-            "hr", "employee", "leave", "payroll", "salary", "benefit",
-            "policy", "holiday", "attendance", "recruitment", "onboarding",
+            "hr",
+            "employee",
+            "leave",
+            "payroll",
+            "salary",
+            "benefit",
+            "policy",
+            "holiday",
+            "attendance",
+            "recruitment",
+            "onboarding",
         ),
         "documentation_agent": (
-            "document", "documentation", "readme", "manual", "guide",
-            "summary", "summarize", "technical writing", "api docs",
+            "document",
+            "documentation",
+            "readme",
+            "manual",
+            "guide",
+            "summary",
+            "summarize",
+            "technical writing",
+            "api docs",
         ),
         "customer_support_agent": (
-            "customer", "support", "ticket", "complaint", "refund",
-            "issue", "incident", "service request", "sla",
+            "customer",
+            "support",
+            "ticket",
+            "complaint",
+            "refund",
+            "issue",
+            "incident",
+            "service request",
+            "sla",
         ),
         "project_agent": (
-            "project", "sprint", "task", "jira", "roadmap", "timeline",
-            "risk", "milestone", "story", "backlog", "team",
+            "project",
+            "sprint",
+            "task",
+            "jira",
+            "roadmap",
+            "timeline",
+            "risk",
+            "milestone",
+            "story",
+            "backlog",
+            "team",
         ),
         "knowledge_agent": (
-            "explain", "what is", "how does", "knowledge", "research",
-            "question", "information", "compare",
+            "explain",
+            "what is",
+            "how does",
+            "knowledge",
+            "research",
+            "question",
+            "information",
+            "compare",
         ),
     }
 
@@ -66,7 +104,7 @@ class AgentRouter:
                 confidence=0.5,
             )
 
-        selected = [name for name, _ in matched[:max(1, max_agents)]]
+        selected = [name for name, _ in matched[: max(1, max_agents)]]
         top_score = matched[0][1]
         confidence = min(0.95, 0.55 + (top_score * 0.1))
         return RouteResult(

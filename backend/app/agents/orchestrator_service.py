@@ -41,11 +41,7 @@ class OrchestratorService:
         best_score = 0
 
         for agent_name, keywords in self.agent_keywords.items():
-            score = sum(
-                1
-                for keyword in keywords
-                if keyword in normalized_query
-            )
+            score = sum(1 for keyword in keywords if keyword in normalized_query)
 
             if score > best_score:
                 best_score = score
@@ -96,9 +92,7 @@ class OrchestratorService:
                 tools=selected_tools,
             )
 
-            duration_ms = (
-                time.perf_counter() - start_time
-            ) * 1000
+            duration_ms = (time.perf_counter() - start_time) * 1000
 
             agent_metrics_tracker.record_execution(
                 agent_name=selected_agent,
@@ -132,9 +126,7 @@ class OrchestratorService:
             }
 
         except Exception as exc:
-            duration_ms = (
-                time.perf_counter() - start_time
-            ) * 1000
+            duration_ms = (time.perf_counter() - start_time) * 1000
 
             agent_metrics_tracker.record_execution(
                 agent_name=selected_agent,
@@ -159,16 +151,9 @@ class OrchestratorService:
         query: str,
         tools: list[str],
     ) -> str:
-        tool_text = (
-            ", ".join(tools)
-            if tools
-            else "no external tools"
-        )
+        tool_text = ", ".join(tools) if tools else "no external tools"
 
-        return (
-            f"The {agent_name} handled your request: "
-            f"'{query}'. Selected tools: {tool_text}."
-        )
+        return f"The {agent_name} handled your request: '{query}'. Selected tools: {tool_text}."
 
 
 orchestrator_service = OrchestratorService()

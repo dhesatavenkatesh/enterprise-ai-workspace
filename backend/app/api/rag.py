@@ -32,7 +32,6 @@ from app.schemas.rag import (
     RAGSearchResponse,
 )
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -121,16 +120,11 @@ def index_document(
         ) from exc
 
     except Exception as exc:
-        logger.exception(
-            "Unexpected document indexing error."
-        )
+        logger.exception("Unexpected document indexing error.")
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=(
-                "An unexpected error occurred while indexing "
-                "the document."
-            ),
+            detail=("An unexpected error occurred while indexing the document."),
         ) from exc
 
 
@@ -147,9 +141,7 @@ def document_index_status(
     try:
         service = get_rag_service(db)
 
-        return service.get_document_index_status(
-            document_id
-        )
+        return service.get_document_index_status(document_id)
 
     except DocumentNotFoundError as exc:
         raise HTTPException(
@@ -164,15 +156,11 @@ def document_index_status(
         ) from exc
 
     except Exception as exc:
-        logger.exception(
-            "Unable to retrieve indexing status."
-        )
+        logger.exception("Unable to retrieve indexing status.")
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=(
-                "Unable to retrieve document indexing status."
-            ),
+            detail=("Unable to retrieve document indexing status."),
         ) from exc
 
 
@@ -189,9 +177,7 @@ def delete_document_index(
     try:
         service = get_rag_service(db)
 
-        return service.remove_document_index(
-            document_id
-        )
+        return service.remove_document_index(document_id)
 
     except DocumentNotFoundError as exc:
         raise HTTPException(
@@ -212,9 +198,7 @@ def delete_document_index(
         ) from exc
 
     except Exception as exc:
-        logger.exception(
-            "Unable to remove document index."
-        )
+        logger.exception("Unable to remove document index.")
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -236,9 +220,7 @@ def delete_document_index(
 def rag_search(
     payload: RAGSearchRequest,
     db: Session = Depends(get_db),
-    user_id: int = Depends(
-        get_authenticated_user_id
-    ),
+    user_id: int = Depends(get_authenticated_user_id),
 ) -> dict:
     try:
         service = get_rag_service(db)
@@ -246,16 +228,10 @@ def rag_search(
         result = service.search(
             query=payload.query.strip(),
             top_k=payload.top_k,
-            document_id=(
-                str(payload.document_id)
-                if payload.document_id
-                else None
-            ),
+            document_id=(str(payload.document_id) if payload.document_id else None),
             department=payload.department,
             document_type=payload.document_type,
-            minimum_similarity=(
-                payload.minimum_similarity
-            ),
+            minimum_similarity=(payload.minimum_similarity),
             user_id=user_id,
         )
 
@@ -268,9 +244,7 @@ def rag_search(
         ) from exc
 
     except RAGSearchError as exc:
-        logger.exception(
-            "Enterprise document search failed."
-        )
+        logger.exception("Enterprise document search failed.")
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -278,15 +252,11 @@ def rag_search(
         ) from exc
 
     except Exception as exc:
-        logger.exception(
-            "Unexpected RAG search error."
-        )
+        logger.exception("Unexpected RAG search error.")
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=(
-                "An unexpected error occurred during search."
-            ),
+            detail=("An unexpected error occurred during search."),
         ) from exc
 
 
@@ -304,9 +274,7 @@ def rag_search(
 def rag_chat(
     payload: RAGChatRequest,
     db: Session = Depends(get_db),
-    user_id: int = Depends(
-        get_authenticated_user_id
-    ),
+    user_id: int = Depends(get_authenticated_user_id),
 ) -> dict:
     try:
         service = get_rag_service(db)
@@ -314,16 +282,10 @@ def rag_chat(
         result = service.answer_question(
             query=payload.query.strip(),
             top_k=payload.top_k,
-            document_id=(
-                str(payload.document_id)
-                if payload.document_id
-                else None
-            ),
+            document_id=(str(payload.document_id) if payload.document_id else None),
             department=payload.department,
             document_type=payload.document_type,
-            minimum_similarity=(
-                payload.minimum_similarity
-            ),
+            minimum_similarity=(payload.minimum_similarity),
             user_id=user_id,
         )
 
@@ -342,9 +304,7 @@ def rag_chat(
         ) from exc
 
     except RAGServiceError as exc:
-        logger.exception(
-            "RAG answer generation failed."
-        )
+        logger.exception("RAG answer generation failed.")
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -352,16 +312,11 @@ def rag_chat(
         ) from exc
 
     except Exception as exc:
-        logger.exception(
-            "Unexpected RAG chat error."
-        )
+        logger.exception("Unexpected RAG chat error.")
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=(
-                "An unexpected error occurred while generating "
-                "the answer."
-            ),
+            detail=("An unexpected error occurred while generating the answer."),
         ) from exc
 
 
@@ -385,9 +340,7 @@ def rag_analytics(
         return service.get_analytics()
 
     except Exception as exc:
-        logger.exception(
-            "Unable to retrieve RAG analytics."
-        )
+        logger.exception("Unable to retrieve RAG analytics.")
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

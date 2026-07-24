@@ -3,9 +3,7 @@ import hmac
 
 
 def hash_token(token: str) -> str:
-    return hashlib.sha256(
-        token.encode("utf-8")
-    ).hexdigest()
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
 def verify_token_hash(

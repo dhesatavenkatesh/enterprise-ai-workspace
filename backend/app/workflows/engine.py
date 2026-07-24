@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from app.agents.bootstrap import register_default_agents
@@ -22,7 +22,7 @@ from app.workflows.store import WorkflowStore, workflow_store
 
 
 def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class WorkflowEngine:
@@ -203,7 +203,9 @@ class WorkflowEngine:
         return run
 
     @staticmethod
-    def _render(template: str, initial_input: str, previous_output: Any, context: dict[str, Any]) -> str:
+    def _render(
+        template: str, initial_input: str, previous_output: Any, context: dict[str, Any]
+    ) -> str:
         values = {
             "input": initial_input,
             "previous_output": str(previous_output),

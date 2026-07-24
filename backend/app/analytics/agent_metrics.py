@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-
 BASE_DIR = Path(__file__).resolve().parents[2]
 
 METRICS_DIRECTORY = BASE_DIR / "storage"
@@ -83,9 +82,7 @@ class AgentMetricsTracker:
         metrics: list[dict[str, Any]],
     ) -> None:
         with self._lock:
-            temporary_file = (
-                self.metrics_file.with_suffix(".tmp")
-            )
+            temporary_file = self.metrics_file.with_suffix(".tmp")
 
             with temporary_file.open(
                 "w",
@@ -127,8 +124,7 @@ class AgentMetricsTracker:
 
         metric = AgentExecutionMetric(
             id=str(uuid4()),
-            agent_name=agent_name.strip()
-            or "unknown_agent",
+            agent_name=agent_name.strip() or "unknown_agent",
             status=normalized_status,
             response_time_ms=max(
                 float(response_time_ms),
@@ -136,16 +132,10 @@ class AgentMetricsTracker:
             ),
             input_tokens=max(int(input_tokens), 0),
             output_tokens=max(int(output_tokens), 0),
-            tool_names=[
-                tool.strip()
-                for tool in (tool_names or [])
-                if tool.strip()
-            ],
+            tool_names=[tool.strip() for tool in (tool_names or []) if tool.strip()],
             workflow_id=workflow_id,
             workflow_duration_ms=(
-                max(float(workflow_duration_ms), 0.0)
-                if workflow_duration_ms is not None
-                else None
+                max(float(workflow_duration_ms), 0.0) if workflow_duration_ms is not None else None
             ),
             error_message=error_message,
             created_at=datetime.now(
@@ -207,17 +197,9 @@ class AgentMetricsTracker:
 
         total_executions = len(metrics)
 
-        successful_runs = sum(
-            1
-            for metric in metrics
-            if metric.get("status") == "success"
-        )
+        successful_runs = sum(1 for metric in metrics if metric.get("status") == "success")
 
-        failed_runs = sum(
-            1
-            for metric in metrics
-            if metric.get("status") == "failed"
-        )
+        failed_runs = sum(1 for metric in metrics if metric.get("status") == "failed")
 
         response_times = [
             float(
@@ -230,21 +212,12 @@ class AgentMetricsTracker:
         ]
 
         average_response_time_ms = (
-            sum(response_times)
-            / len(response_times)
-            if response_times
-            else 0.0
+            sum(response_times) / len(response_times) if response_times else 0.0
         )
 
-        total_input_tokens = sum(
-            int(metric.get("input_tokens", 0))
-            for metric in metrics
-        )
+        total_input_tokens = sum(int(metric.get("input_tokens", 0)) for metric in metrics)
 
-        total_output_tokens = sum(
-            int(metric.get("output_tokens", 0))
-            for metric in metrics
-        )
+        total_output_tokens = sum(int(metric.get("output_tokens", 0)) for metric in metrics)
 
         workflow_durations = [
             float(metric["workflow_duration_ms"])
@@ -256,19 +229,10 @@ class AgentMetricsTracker:
         ]
 
         average_workflow_duration_ms = (
-            sum(workflow_durations)
-            / len(workflow_durations)
-            if workflow_durations
-            else 0.0
+            sum(workflow_durations) / len(workflow_durations) if workflow_durations else 0.0
         )
 
-        success_rate = (
-            successful_runs
-            / total_executions
-            * 100
-            if total_executions
-            else 0.0
-        )
+        success_rate = successful_runs / total_executions * 100 if total_executions else 0.0
 
         return {
             "total_executions": total_executions,
@@ -284,10 +248,7 @@ class AgentMetricsTracker:
             ),
             "total_input_tokens": total_input_tokens,
             "total_output_tokens": total_output_tokens,
-            "total_tokens": (
-                total_input_tokens
-                + total_output_tokens
-            ),
+            "total_tokens": (total_input_tokens + total_output_tokens),
             "average_workflow_duration_ms": round(
                 average_workflow_duration_ms,
                 2,
@@ -319,12 +280,7 @@ class AgentMetricsTracker:
         for agent_name, executions in grouped.items():
             total = len(executions)
 
-            successful = sum(
-                1
-                for execution in executions
-                if execution.get("status")
-                == "success"
-            )
+            successful = sum(1 for execution in executions if execution.get("status") == "success")
 
             failed = total - successful
 
@@ -359,11 +315,7 @@ class AgentMetricsTracker:
                 for execution in executions
             )
 
-            success_rate = (
-                successful / total * 100
-                if total
-                else 0.0
-            )
+            success_rate = successful / total * 100 if total else 0.0
 
             leaderboard.append(
                 {
@@ -418,8 +370,7 @@ class AgentMetricsTracker:
                 "tool_name": tool_name,
                 "usage_count": usage_count,
             }
-            for tool_name, usage_count
-            in tool_counter.most_common()
+            for tool_name, usage_count in tool_counter.most_common()
         ]
 
     def get_trends(
@@ -431,9 +382,7 @@ class AgentMetricsTracker:
         metrics = self._read_metrics()
 
         now = datetime.now(UTC)
-        start_date = (
-            now - timedelta(days=safe_days - 1)
-        ).date()
+        start_date = (now - timedelta(days=safe_days - 1)).date()
 
         daily_data: dict[
             str,
@@ -441,10 +390,7 @@ class AgentMetricsTracker:
         ] = {}
 
         for day_offset in range(safe_days):
-            current_date = (
-                start_date
-                + timedelta(days=day_offset)
-            )
+            current_date = start_date + timedelta(days=day_offset)
 
             date_key = current_date.isoformat()
 
@@ -471,9 +417,7 @@ class AgentMetricsTracker:
                     str(created_at_value),
                 )
 
-                metric_date = (
-                    created_at.date().isoformat()
-                )
+                metric_date = created_at.date().isoformat()
             except ValueError:
                 continue
 
@@ -489,9 +433,8 @@ class AgentMetricsTracker:
             else:
                 day["failed_runs"] += 1
 
-            day["token_usage"] += (
-                int(metric.get("input_tokens", 0))
-                + int(metric.get("output_tokens", 0))
+            day["token_usage"] += int(metric.get("input_tokens", 0)) + int(
+                metric.get("output_tokens", 0)
             )
 
             day["_response_times"].append(
@@ -513,12 +456,7 @@ class AgentMetricsTracker:
             )
 
             day["average_response_time_ms"] = round(
-                (
-                    sum(response_times)
-                    / len(response_times)
-                )
-                if response_times
-                else 0.0,
+                (sum(response_times) / len(response_times)) if response_times else 0.0,
                 2,
             )
 
@@ -532,14 +470,10 @@ class AgentMetricsTracker:
     ) -> dict[str, Any]:
         return {
             "summary": self.get_summary(),
-            "leaderboard": (
-                self.get_agent_leaderboard()
-            ),
+            "leaderboard": (self.get_agent_leaderboard()),
             "tool_usage": self.get_tool_usage(),
             "trends": self.get_trends(days),
-            "recent_executions": (
-                self.list_executions(limit=10)
-            ),
+            "recent_executions": (self.list_executions(limit=10)),
         }
 
 

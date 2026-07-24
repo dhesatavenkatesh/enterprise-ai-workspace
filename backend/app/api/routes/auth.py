@@ -28,7 +28,6 @@ from app.services.auth_service import (
     register_user,
 )
 
-
 router = APIRouter(
     prefix="/api/auth",
     tags=["Authentication"],
@@ -59,15 +58,9 @@ def login(
     request: Request,
     db: Session = Depends(get_db),
 ) -> TokenResponse:
-    client_ip = (
-        request.client.host
-        if request.client
-        else None
-    )
+    client_ip = request.client.host if request.client else None
 
-    user_agent = request.headers.get(
-        "user-agent"
-    )
+    user_agent = request.headers.get("user-agent")
 
     return login_user(
         db=db,
@@ -104,9 +97,7 @@ def logout(
         request.refresh_token,
     )
 
-    return MessageResponse(
-        message="Logout successful"
-    )
+    return MessageResponse(message="Logout successful")
 
 
 @router.get(
@@ -114,10 +105,6 @@ def logout(
     response_model=AuthUserResponse,
 )
 def get_me(
-    current_user: User = Depends(
-        get_current_user
-    ),
+    current_user: User = Depends(get_current_user),
 ) -> AuthUserResponse:
-    return build_user_response(
-        current_user
-    )
+    return build_user_response(current_user)

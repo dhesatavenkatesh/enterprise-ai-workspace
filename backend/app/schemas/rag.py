@@ -5,7 +5,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-
 # =============================================================================
 # Shared schemas
 # =============================================================================
@@ -40,36 +39,27 @@ class DocumentIndexRequest(RAGBaseSchema):
         default=512,
         ge=100,
         le=4000,
-        description=(
-            "Maximum size of each generated document chunk."
-        ),
+        description=("Maximum size of each generated document chunk."),
     )
 
     chunk_overlap: int = Field(
         default=50,
         ge=0,
         le=1000,
-        description=(
-            "Number of overlapping characters or tokens "
-            "between consecutive chunks."
-        ),
+        description=("Number of overlapping characters or tokens between consecutive chunks."),
     )
 
     replace_existing: bool = Field(
         default=True,
-        description=(
-            "Delete and replace an existing document index."
-        ),
+        description=("Delete and replace an existing document index."),
     )
 
     @model_validator(mode="after")
     def validate_chunk_configuration(
         self,
-    ) -> "DocumentIndexRequest":
+    ) -> DocumentIndexRequest:
         if self.chunk_overlap >= self.chunk_size:
-            raise ValueError(
-                "chunk_overlap must be smaller than chunk_size."
-            )
+            raise ValueError("chunk_overlap must be smaller than chunk_size.")
 
         return self
 
@@ -124,9 +114,7 @@ class RAGSearchRequest(RAGBaseSchema):
 
     document_id: UUID | None = Field(
         default=None,
-        description=(
-            "Optionally restrict search to one document."
-        ),
+        description=("Optionally restrict search to one document."),
     )
 
     department: str | None = Field(
@@ -145,9 +133,7 @@ class RAGSearchRequest(RAGBaseSchema):
         default=0.25,
         ge=0.0,
         le=1.0,
-        description=(
-            "Minimum similarity score required for a result."
-        ),
+        description=("Minimum similarity score required for a result."),
     )
 
 

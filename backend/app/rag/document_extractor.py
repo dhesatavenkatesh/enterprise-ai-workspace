@@ -13,7 +13,6 @@ from fastapi import HTTPException, status
 from markdown import markdown
 from pypdf import PdfReader
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -88,9 +87,7 @@ def extract_text_from_pdf(
     """
 
     try:
-        reader = PdfReader(
-            str(file_path)
-        )
+        reader = PdfReader(str(file_path))
 
         extracted_pages: list[str] = []
 
@@ -102,9 +99,7 @@ def extract_text_from_pdf(
                 page_text = page.extract_text() or ""
 
                 if page_text.strip():
-                    extracted_pages.append(
-                        f"[Page {page_number}]\n{page_text}"
-                    )
+                    extracted_pages.append(f"[Page {page_number}]\n{page_text}")
 
             except Exception:
                 logger.exception(
@@ -113,9 +108,7 @@ def extract_text_from_pdf(
                     file_path,
                 )
 
-        return clean_extracted_text(
-            "\n\n".join(extracted_pages)
-        )
+        return clean_extracted_text("\n\n".join(extracted_pages))
 
     except Exception as exc:
         logger.exception(
@@ -123,9 +116,7 @@ def extract_text_from_pdf(
             file_path,
         )
 
-        raise DocumentExtractionError(
-            f"Unable to extract text from PDF: {exc}"
-        ) from exc
+        raise DocumentExtractionError(f"Unable to extract text from PDF: {exc}") from exc
 
 
 def extract_pdf_pages(
@@ -144,9 +135,7 @@ def extract_pdf_pages(
     """
 
     try:
-        reader = PdfReader(
-            str(file_path)
-        )
+        reader = PdfReader(str(file_path))
 
         pages: list[dict[str, Any]] = []
 
@@ -155,9 +144,7 @@ def extract_pdf_pages(
             start=1,
         ):
             try:
-                page_text = clean_extracted_text(
-                    page.extract_text() or ""
-                )
+                page_text = clean_extracted_text(page.extract_text() or "")
 
                 if page_text:
                     pages.append(
@@ -182,9 +169,7 @@ def extract_pdf_pages(
             file_path,
         )
 
-        raise DocumentExtractionError(
-            f"Unable to extract PDF pages: {exc}"
-        ) from exc
+        raise DocumentExtractionError(f"Unable to extract PDF pages: {exc}") from exc
 
 
 def extract_text_from_txt(
@@ -207,20 +192,14 @@ def extract_text_from_txt(
 
     for encoding in encodings:
         try:
-            text = file_path.read_text(
-                encoding=encoding
-            )
+            text = file_path.read_text(encoding=encoding)
 
-            return clean_extracted_text(
-                text
-            )
+            return clean_extracted_text(text)
 
         except UnicodeDecodeError as exc:
             last_error = exc
 
-    raise DocumentExtractionError(
-        f"Unable to decode text file: {last_error}"
-    )
+    raise DocumentExtractionError(f"Unable to decode text file: {last_error}")
 
 
 def extract_text_from_markdown(
@@ -231,26 +210,18 @@ def extract_text_from_markdown(
     """
 
     try:
-        markdown_text = extract_text_from_txt(
-            file_path
-        )
+        markdown_text = extract_text_from_txt(file_path)
 
-        html_content = markdown(
-            markdown_text
-        )
+        html_content = markdown(markdown_text)
 
         soup = BeautifulSoup(
             html_content,
             "html.parser",
         )
 
-        plain_text = soup.get_text(
-            separator="\n"
-        )
+        plain_text = soup.get_text(separator="\n")
 
-        return clean_extracted_text(
-            plain_text
-        )
+        return clean_extracted_text(plain_text)
 
     except Exception as exc:
         logger.exception(
@@ -258,9 +229,7 @@ def extract_text_from_markdown(
             file_path,
         )
 
-        raise DocumentExtractionError(
-            f"Unable to extract Markdown text: {exc}"
-        ) from exc
+        raise DocumentExtractionError(f"Unable to extract Markdown text: {exc}") from exc
 
 
 def extract_text_from_docx(
@@ -271,9 +240,7 @@ def extract_text_from_docx(
     """
 
     try:
-        document = DocxDocument(
-            str(file_path)
-        )
+        document = DocxDocument(str(file_path))
 
         content: list[str] = []
 
@@ -281,9 +248,7 @@ def extract_text_from_docx(
             paragraph_text = paragraph.text.strip()
 
             if paragraph_text:
-                content.append(
-                    paragraph_text
-                )
+                content.append(paragraph_text)
 
         for table_number, table in enumerate(
             document.tables,
@@ -292,36 +257,19 @@ def extract_text_from_docx(
             table_rows: list[str] = []
 
             for row in table.rows:
-                row_values = [
-                    clean_extracted_text(
-                        cell.text
-                    )
-                    for cell in row.cells
-                ]
+                row_values = [clean_extracted_text(cell.text) for cell in row.cells]
 
-                row_values = [
-                    value
-                    for value in row_values
-                    if value
-                ]
+                row_values = [value for value in row_values if value]
 
                 if row_values:
-                    table_rows.append(
-                        " | ".join(row_values)
-                    )
+                    table_rows.append(" | ".join(row_values))
 
             if table_rows:
-                content.append(
-                    f"[Table {table_number}]"
-                )
+                content.append(f"[Table {table_number}]")
 
-                content.extend(
-                    table_rows
-                )
+                content.extend(table_rows)
 
-        return clean_extracted_text(
-            "\n\n".join(content)
-        )
+        return clean_extracted_text("\n\n".join(content))
 
     except Exception as exc:
         logger.exception(
@@ -329,9 +277,7 @@ def extract_text_from_docx(
             file_path,
         )
 
-        raise DocumentExtractionError(
-            f"Unable to extract DOCX text: {exc}"
-        ) from exc
+        raise DocumentExtractionError(f"Unable to extract DOCX text: {exc}") from exc
 
 
 def extract_text_from_csv(
@@ -359,25 +305,14 @@ def extract_text_from_csv(
                 encoding=encoding,
                 newline="",
             ) as csv_file:
-                reader = csv.reader(
-                    csv_file
-                )
+                reader = csv.reader(csv_file)
 
                 for row in reader:
-                    cleaned_row = [
-                        clean_extracted_text(
-                            value
-                        )
-                        for value in row
-                    ]
+                    cleaned_row = [clean_extracted_text(value) for value in row]
 
-                    rows.append(
-                        " | ".join(cleaned_row)
-                    )
+                    rows.append(" | ".join(cleaned_row))
 
-            return clean_extracted_text(
-                "\n".join(rows)
-            )
+            return clean_extracted_text("\n".join(rows))
 
         except UnicodeDecodeError as exc:
             last_error = exc
@@ -388,13 +323,9 @@ def extract_text_from_csv(
                 file_path,
             )
 
-            raise DocumentExtractionError(
-                f"Unable to extract CSV text: {exc}"
-            ) from exc
+            raise DocumentExtractionError(f"Unable to extract CSV text: {exc}") from exc
 
-    raise DocumentExtractionError(
-        f"Unable to decode CSV file: {last_error}"
-    )
+    raise DocumentExtractionError(f"Unable to decode CSV file: {last_error}")
 
 
 def extract_text_from_json(
@@ -405,13 +336,9 @@ def extract_text_from_json(
     """
 
     try:
-        raw_text = extract_text_from_txt(
-            file_path
-        )
+        raw_text = extract_text_from_txt(file_path)
 
-        parsed_json = json.loads(
-            raw_text
-        )
+        parsed_json = json.loads(raw_text)
 
         formatted_json = json.dumps(
             parsed_json,
@@ -419,14 +346,10 @@ def extract_text_from_json(
             ensure_ascii=False,
         )
 
-        return clean_extracted_text(
-            formatted_json
-        )
+        return clean_extracted_text(formatted_json)
 
     except json.JSONDecodeError as exc:
-        raise DocumentExtractionError(
-            f"Invalid JSON document: {exc}"
-        ) from exc
+        raise DocumentExtractionError(f"Invalid JSON document: {exc}") from exc
 
     except Exception as exc:
         logger.exception(
@@ -434,9 +357,7 @@ def extract_text_from_json(
             file_path,
         )
 
-        raise DocumentExtractionError(
-            f"Unable to extract JSON text: {exc}"
-        ) from exc
+        raise DocumentExtractionError(f"Unable to extract JSON text: {exc}") from exc
 
 
 def validate_document_path(
@@ -463,15 +384,12 @@ def validate_document_path(
     extension = path.suffix.lower()
 
     if extension not in SUPPORTED_EXTENSIONS:
-        allowed_extensions = ", ".join(
-            sorted(SUPPORTED_EXTENSIONS)
-        )
+        allowed_extensions = ", ".join(sorted(SUPPORTED_EXTENSIONS))
 
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=(
-                f"Unsupported document type '{extension}'. "
-                f"Supported types: {allowed_extensions}."
+                f"Unsupported document type '{extension}'. Supported types: {allowed_extensions}."
             ),
         )
 
@@ -493,9 +411,7 @@ def extract_document_text(
     - JSON
     """
 
-    path = validate_document_path(
-        file_path
-    )
+    path = validate_document_path(file_path)
 
     extension = path.suffix.lower()
 
@@ -508,22 +424,16 @@ def extract_document_text(
         ".json": extract_text_from_json,
     }
 
-    extractor = extractors.get(
-        extension
-    )
+    extractor = extractors.get(extension)
 
     if extractor is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                f"No text extractor is available for '{extension}'."
-            ),
+            detail=(f"No text extractor is available for '{extension}'."),
         )
 
     try:
-        extracted_text = extractor(
-            path
-        )
+        extracted_text = extractor(path)
 
         if not extracted_text.strip():
             raise HTTPException(
@@ -559,7 +469,5 @@ def extract_document_text(
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=(
-                "Unexpected error while extracting document text."
-            ),
+            detail=("Unexpected error while extracting document text."),
         ) from exc

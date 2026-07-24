@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.dependencies.auth import get_current_user
 from app.approvals.schemas import (
@@ -11,7 +11,6 @@ from app.approvals.schemas import (
 )
 from app.approvals.service import ApprovalService
 from app.models.user import User
-
 
 router = APIRouter(prefix="/api/approvals", tags=["Human Approval"])
 

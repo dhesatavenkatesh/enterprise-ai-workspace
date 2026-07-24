@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -11,16 +11,14 @@ def create_access_token(
     subject: str,
     role: str,
 ) -> tuple[str, datetime]:
-    expire = datetime.now(timezone.utc) + timedelta(
-        minutes=settings.access_token_expire_minutes
-    )
+    expire = datetime.now(UTC) + timedelta(minutes=settings.access_token_expire_minutes)
 
     payload: dict[str, Any] = {
         "sub": subject,
         "role": role,
         "type": "access",
         "jti": str(uuid4()),
-        "iat": datetime.now(timezone.utc),
+        "iat": datetime.now(UTC),
         "exp": expire,
     }
 
@@ -37,16 +35,14 @@ def create_refresh_token(
     subject: str,
     role: str,
 ) -> tuple[str, datetime]:
-    expire = datetime.now(timezone.utc) + timedelta(
-        days=settings.refresh_token_expire_days
-    )
+    expire = datetime.now(UTC) + timedelta(days=settings.refresh_token_expire_days)
 
     payload: dict[str, Any] = {
         "sub": subject,
         "role": role,
         "type": "refresh",
         "jti": str(uuid4()),
-        "iat": datetime.now(timezone.utc),
+        "iat": datetime.now(UTC),
         "exp": expire,
     }
 

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
@@ -45,11 +45,7 @@ def get_user_by_email(
     db: Session,
     email: str,
 ) -> User | None:
-    statement = (
-        select(User)
-        .options(joinedload(User.role))
-        .where(User.email == email.lower())
-    )
+    statement = select(User).options(joinedload(User.role)).where(User.email == email.lower())
 
     return db.scalar(statement)
 
@@ -58,11 +54,7 @@ def get_user_by_id(
     db: Session,
     user_id: int,
 ) -> User | None:
-    statement = (
-        select(User)
-        .options(joinedload(User.role))
-        .where(User.id == user_id)
-    )
+    statement = select(User).options(joinedload(User.role)).where(User.id == user_id)
 
     return db.scalar(statement)
 
@@ -82,11 +74,7 @@ def register_user(
             detail="Email already registered",
         )
 
-    employee_role = db.scalar(
-        select(Role).where(
-            Role.name == "Employee"
-        )
-    )
+    employee_role = db.scalar(select(Role).where(Role.name == "Employee"))
 
     if employee_role is None:
         raise HTTPException(
@@ -98,9 +86,7 @@ def register_user(
         user = User(
             name=request.name.strip(),
             email=request.email.lower(),
-            password_hash=hash_password(
-                request.password
-            ),
+            password_hash=hash_password(request.password),
             role_id=employee_role.id,
             status="active",
         )
@@ -154,39 +140,35 @@ def login_user(
 
     if user.is_deleted:
         raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="User account has been deleted",
-    )
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account has been deleted",
+        )
 
     if user.is_locked:
         raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="User account is locked",
-    )
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is locked",
+        )
 
     if not user.is_active:
         raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="User account is inactive",
-    )
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is inactive",
+        )
 
     access_token, _ = create_access_token(
         subject=str(user.id),
         role=user.role.name,
     )
 
-    refresh_token, refresh_expiry = (
-        create_refresh_token(
-            subject=str(user.id),
-            role=user.role.name,
-        )
+    refresh_token, refresh_expiry = create_refresh_token(
+        subject=str(user.id),
+        role=user.role.name,
     )
 
     session = UserSession(
         user_id=user.id,
-        refresh_token_hash=hash_token(
-            refresh_token
-        ),
+        refresh_token_hash=hash_token(refresh_token),
         expiry=refresh_expiry,
         ip_address=ip_address,
         user_agent=user_agent,
@@ -209,9 +191,7 @@ def login_user(
         access_token=access_token,
         refresh_token=refresh_token,
         token_type="bearer",
-        expires_in=(
-            settings.access_token_expire_minutes * 60
-        ),
+        expires_in=(settings.access_token_expire_minutes * 60),
         user=build_user_response(user),
     )
 
@@ -221,9 +201,7 @@ def refresh_user_session(
     refresh_token: str,
 ) -> TokenResponse:
     try:
-        payload = decode_refresh_token(
-            refresh_token
-        )
+        payload = decode_refresh_token(refresh_token)
 
         user_id = int(payload["sub"])
 
@@ -254,7 +232,7 @@ def refresh_user_session(
             detail="User account is inactive",
         )
 
-    current_time = datetime.now(timezone.utc)
+    current_time = datetime.now(UTC)
 
     sessions = db.scalars(
         select(UserSession).where(
@@ -289,18 +267,14 @@ def refresh_user_session(
         role=user.role.name,
     )
 
-    new_refresh_token, new_refresh_expiry = (
-        create_refresh_token(
-            subject=str(user.id),
-            role=user.role.name,
-        )
+    new_refresh_token, new_refresh_expiry = create_refresh_token(
+        subject=str(user.id),
+        role=user.role.name,
     )
 
     new_session = UserSession(
         user_id=user.id,
-        refresh_token_hash=hash_token(
-            new_refresh_token
-        ),
+        refresh_token_hash=hash_token(new_refresh_token),
         expiry=new_refresh_expiry,
         ip_address=matching_session.ip_address,
         user_agent=matching_session.user_agent,
@@ -322,9 +296,7 @@ def refresh_user_session(
         access_token=new_access_token,
         refresh_token=new_refresh_token,
         token_type="bearer",
-        expires_in=(
-            settings.access_token_expire_minutes * 60
-        ),
+        expires_in=(settings.access_token_expire_minutes * 60),
         user=build_user_response(user),
     )
 
@@ -334,9 +306,7 @@ def logout_user(
     refresh_token: str,
 ) -> None:
     try:
-        payload = decode_refresh_token(
-            refresh_token
-        )
+        payload = decode_refresh_token(refresh_token)
 
         user_id = int(payload["sub"])
 
@@ -375,9 +345,7 @@ def logout_user(
             detail="Session is invalid or already revoked",
         )
 
-    matching_session.revoked_at = (
-        datetime.now(timezone.utc)
-    )
+    matching_session.revoked_at = datetime.now(UTC)
 
     try:
         db.commit()

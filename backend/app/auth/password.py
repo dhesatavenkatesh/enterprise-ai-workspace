@@ -1,6 +1,5 @@
 from passlib.context import CryptContext
 
-
 pwd_context = CryptContext(
     schemes=["bcrypt"],
     deprecated="auto",
@@ -9,9 +8,7 @@ pwd_context = CryptContext(
 
 def hash_password(password: str) -> str:
     if len(password.encode("utf-8")) > 72:
-        raise ValueError(
-            "Password must not exceed 72 bytes."
-        )
+        raise ValueError("Password must not exceed 72 bytes.")
 
     return pwd_context.hash(password)
 
